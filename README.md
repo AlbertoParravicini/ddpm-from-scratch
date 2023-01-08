@@ -16,7 +16,7 @@ poetry install
 
 Notebooks inside `notebooks` follow the original blogs. You can run them to obtain plots similar to the ones in the blogs, and look at the commented code to understand what's going on under the hood.
 
-* `1_1_spiral.py`. Create a Gaussian distribution, and create a sprial. Also define a *variance schedule*, a.k.a. a `β schedule`, and progressively add noise to the spiral.
+* `1_1_spiral.py`. Create a Gaussian distribution, and create a sprial. Also define a *variance schedule*, a.k.a. the `β schedule`, and progressively add noise to the spiral.
 * `1_2_gaussian_diffusion.py`. Here we create a Gaussian Diffusion process, with forward and backward processes that we can use for sampling. We add again noise to the spiral, but this time using the forward process. We also define the backward process to iteratively remove the noise we added, but since we don't have a noise prediction model yet, we can't really denoise the spiral! 
 * `1_3_train_denoiser.py`. Here we rewrite the Gaussian Diffusion process using Pytorch, and define a simple model that we plug into the Gaussian Diffusion process. We train it, and show that we can finally denoise the spiral.
 

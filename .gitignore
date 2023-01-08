@@ -18,3 +18,4 @@
 # Add plots
 !plots
 !plots/*.png
+!plots/*.gif

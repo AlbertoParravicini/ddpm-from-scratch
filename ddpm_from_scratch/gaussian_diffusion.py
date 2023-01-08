@@ -1,0 +1,155 @@
+from typing import Callable, Optional, Sequence, Union
+
+import torch
+from torchtyping import TensorType
+
+from ddpm_from_scratch.utils import T
+
+Timestep = Union[int, Sequence[int]]
+
+
+def expand_to_dims(x: torch.Tensor, y: torch.Tensor):
+    """
+    Expand the shape of `x` to match the number of dimensions of `y`, by adding
+    size-1 dimensions to `x`. For example, if `x` has shape `[4]` and `y` has shape `[4, 2, 3]`,
+    the expanded `x` has shape `[4, 1, 1]`.
+    This is useful to broadcast an array of values (`x`) over all the other dimensions of `y`.
+
+    :param x: a tensor to expand
+    :param y: tensor whose number of dimensions must be matched
+    :return: the expanded input tensor
+    """
+    return x[(...,) + (None,) * (len(y.shape) - len(x.shape))]
+
+
+class GaussianDiffusion:
+    def __init__(
+        self,
+        num_timesteps: int,
+        betas: TensorType["T", "float"],
+        denoise_function: Callable[[int, TensorType["float"]], TensorType["float"]],
+    ) -> None:
+        assert num_timesteps == len(betas), "the number of timesteps must be the same as the number of betas"
+
+        # The number of timesteps is used as a way to scale the original betas
+        # to the amount used at inference time. It should be a large number, e.g. 1000 in DDPM,
+        # to obtain a smooth sampling process.
+        self.num_timesteps = num_timesteps
+
+        ############################################
+        # Coefficients used by the forward process #
+        ############################################
+
+        self.betas = betas
+        self.alphas = 1 - betas
+        self.alpha_cumprods = torch.cumprod(self.alphas, dim=0)
+        self.alpha_cumprods_prevs = torch.concatenate([torch.tensor([1.0]), self.alpha_cumprods[:-1]])
+        self.sqrt_alpha_cumprods = torch.sqrt(self.alpha_cumprods)
+        self.sqrt_one_minus_alpha = torch.sqrt(1 - self.alpha_cumprods)
+
+        #########################################################
+        # Coefficients used by the backward process / posterior #
+        #########################################################
+
+        # 1 / sqrt(α_hat_t), used to estimate x_hat_0
+        self.sqrt_reciprocal_alpha_cumprods = 1 / torch.sqrt(self.alpha_cumprods)
+        # sqrt(1 / α_hat_t - 1), used to estimate x_hat_0
+        self.sqrt_reciprocal_alpha_cumprods_minus_one = torch.sqrt(1 / self.alpha_cumprods - 1)
+        # "beta_hat_t", β_t * (1 - α_hat_t-1) /  (1 - α_hat_t), variance of q(x_t-1 | x_t, x_0)
+        self.posterior_variance = self.betas * (1 - self.alpha_cumprods_prevs) / (1 - self.alpha_cumprods)
+        # Used to avoid exponentials. Clipping done for numerical stability
+        self.log_clipped_posterior_variance = torch.log(torch.maximum(self.posterior_variance, torch.tensor(1e-20)))
+        # "alpha_hat_t", mean of the backward process, as linear combination of x_t and x_0.
+        self.posterior_mean_x_0_coeff = self.betas * torch.sqrt(self.alpha_cumprods_prevs) / (1 - self.alpha_cumprods)
+        self.posterior_mean_x_t_coeff = (
+            (1 - self.alpha_cumprods_prevs) * torch.sqrt(self.alphas) / (1 - self.alpha_cumprods)
+        )
+
+        ################################
+        # Function learnt by the model #
+        ################################
+
+        self.denoise_function = denoise_function
+
+    def forward_sample(
+        self, t: Timestep, x_start: TensorType["float"], noise: Optional[TensorType["float"]] = None
+    ) -> tuple[TensorType["float"], TensorType["float"]]:
+        """
+        Compute `q(x_i | x_i-t)`, as a sample of a Gaussian process with equation
+        ```
+        sqrt_alpha_cumprods[t] * x_start + sqrt_one_minus_alpha[t] * noise
+        ```
+
+        :param t: current timestep, as integer. It must be `[0, self.num_timesteps]`
+        :param x_start: value of `x_i-t`, the value on which the forward process q is conditioned
+        :param noise: noise added to the forward process. If None, sample from a standard Gaussian
+        :return: the sampled value of `q(x_i | x_i-t)`, and the added noise
+        """
+        if noise is None:
+            noise = torch.randn(*x_start.shape)
+        # Since `t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_start`.
+        sqrt_alpha_cumprod = expand_to_dims(self.sqrt_alpha_cumprods[t], x_start)
+        sqrt_one_minus_alpha = expand_to_dims(self.sqrt_one_minus_alpha[t], x_start)
+        return sqrt_alpha_cumprod * x_start + sqrt_one_minus_alpha * noise, noise
+
+    def _predict_x_0_and_noise(
+        self, t: Timestep, x_start: TensorType["float"]
+    ) -> tuple[TensorType["float"], TensorType["float"]]:
+        """
+        Compute a sample of the backward process `q(x_0 | x_t)`, by denoising `x_t` using a model,
+        and return both the sample and the predicted noise.
+        This is computed as `x_hat_0 = 1/sqrt(α_hat_t) * x_t  - sqrt(1 - α_hat_t) / sqrt(α_hat_t)
+        """
+        noise = self.denoise_function(t, x_start)
+        # Since `t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_start`.
+        coeff_x_t = expand_to_dims(self.sqrt_reciprocal_alpha_cumprods[t], x_start)
+        coeff_noise = expand_to_dims(self.sqrt_reciprocal_alpha_cumprods_minus_one[t], x_start)
+        x_hat_0 = coeff_x_t * x_start - coeff_noise * noise / coeff_x_t
+        return x_hat_0, noise
+
+    def _posterior_mean_variance(
+        self, t: Timestep, x_start: TensorType["float"], x_t: TensorType["float"]
+    ) -> tuple[float, float]:
+        """
+        Obtain the mean and variance of q(x_t-1 | x_t, x_0)
+        """
+        # Since `t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_start`.
+        posterior_mean_x_0_coeff = expand_to_dims(self.posterior_mean_x_0_coeff[t], x_start)
+        posterior_mean_x_t_coeff = expand_to_dims(self.posterior_mean_x_t_coeff[t], x_start)
+        posterior_mean = posterior_mean_x_0_coeff * x_start + posterior_mean_x_t_coeff * x_t
+        posterior_variance = self.posterior_variance[t]
+        return posterior_mean, posterior_variance
+
+    def backward_sample(
+        self,
+        t: Timestep,
+        x_start: TensorType["float"],
+        clip_predicted_x_0: bool = True,
+        add_noise: bool = True,
+    ) -> tuple[TensorType["float"], TensorType["float"]]:
+        """
+        Obtain a sample of the backward process `q(x_t-1 | x_t, x_0)`,
+        by predicting `x_0` using a denoising model, and then taking a step of the backward process.
+        We have that `q(x_t-1 | x_t, x_0) ~ N(μ_hat_t, β_hat_t)`, where `μ_hat_t` is a function of `x_t`
+        and of the predicted `x_0`, and `β_hat_t` is only a function of the `β` schedule.
+
+        :param t: timestep of `x_t`
+        :param x_start: value of `x_t`
+        :param clip_predicted_x_0: if True, clip the predicted value of `x_0` in `[-1, 1]`
+            This is meaningful only for denoising the spiral! We mights other values for images
+        :param add_noise: if True, add noise, scaled by the posterior variance, to the predicted sample of `x_t-1`.
+            If False, the backward sample is deterministic. It should be False for `t = 0`, True otherwise (in DDPM)
+        :return: the sample of `x_t-1`, and the predicted `x_0`
+        """
+        # Predict x_0 using the model
+        x_hat_0, _ = self._predict_x_0_and_noise(t, x_start)
+        if clip_predicted_x_0:
+            x_hat_0 = torch.clip(x_hat_0, -1, 1)
+        # Obtain the posterior mean and variance, and obtain a sample of q(x_t-1 | x_t, x_0)
+        posterior_mean, posterior_variance = self._posterior_mean_variance(t, x_start=x_hat_0, x_t=x_start)
+        x_t_minus_one = posterior_mean
+        # Add noise to the sample, instead of taking a deterministic step
+        if add_noise:
+            noise = torch.randn(*x_start.shape)
+            x_t_minus_one += torch.sqrt(posterior_variance) * noise
+        return x_t_minus_one, x_hat_0

@@ -1,0 +1,20 @@
+# Ignore all
+*
+
+# Add configuration files
+!.gitignore
+!README.md
+!LICENSE
+!pyproject.toml
+!poetry.lock
+
+# Add python code
+!ddpm_from_scratch
+!ddpm_from_scratch/models
+!ddpm_from_scratch/**/*.py
+!notebooks
+!notebooks/*.py
+
+# Add plots
+!plots
+!plots/*.png

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[tool.poetry]
+version = "0.1.0"
+name = "ddpm-from-scratch"
+description = "Python & Pytorch implementation of Denoising Diffusion Probabilistic Models, from scratch"
+authors = ["Alberto Parravicini <alberto.parravicini@polimi.it>"]
+readme = "README.md"
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = ">= 3.9"
+black = "^22.8"
+isort = "^5"
+spyder-kernels = ">2.3.0, < 2.4.0"
+imageio = "^2.23"
+torch = { version = ">= 1.13" }
+segretini_matplottini = { git = "https://github.com/AlbertoParravicini/segretini-matplottini" }
+torchvision = "^0.14.1"
+torchtyping = "^0.1.4"
+
+[tool.setuptools]
+packages = ["ddpm_from_scratch"]
+
+[tool.black]
+line-length = 119
+target-version = ["py39"]

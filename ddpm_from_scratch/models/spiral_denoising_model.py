@@ -56,7 +56,9 @@ class SpiralDenoisingModel(nn.Module):
         self.embedding_3 = SinusoidalEncoding(32, maximum_length=1000)
         self.dense_4 = nn.Linear(32, 2)
 
-    def forward(self, t: int, x: TensorType["B", "N", "2", "float"]) -> TensorType["B", "N", "2", "float"]:
+    def forward(self, t: TensorType["B", "int"], x: TensorType["B", "N", "2", "float"]) -> TensorType["B", "N", "2", "float"]:
+        # If x is given without batch size, we remove it at the end
+        x_shape_len = len(x.shape)
         # Sum the positional embedding at every layer.
         # We unsqueeze it on the second dimension so that it can be broadcasted over the output the dense layer.
         # This assumes that the batch dimension is present.
@@ -66,4 +68,7 @@ class SpiralDenoisingModel(nn.Module):
         x = nn.functional.silu(x)
         x = self.dense_3(x) + self.embedding_3(t).unsqueeze(1)
         x = self.dense_4(x)
+        # Remove batch size if it was not present
+        if len(x.shape) > x_shape_len:
+            x = x.squeeze(dim=0)
         return x

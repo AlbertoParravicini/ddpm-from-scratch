@@ -20,6 +20,7 @@ torch = { version = ">= 1.13" }
 segretini_matplottini = { git = "https://github.com/AlbertoParravicini/segretini-matplottini" }
 torchvision = "^0.14.1"
 torchtyping = "^0.1.4"
+tqdm = "^4.64.1"
 
 [tool.setuptools]
 packages = ["ddpm_from_scratch"]

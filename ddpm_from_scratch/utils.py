@@ -1,7 +1,9 @@
-from typing import TypeVar
+from typing import TypeVar, Union, Sequence
 
 import torch
 from torchtyping import TensorType
+
+COOL_GREEN = "#57bb8a"
 
 B = TypeVar("B")  # Batch size
 C = TypeVar("C")  # Number of color channels
@@ -10,6 +12,8 @@ H = TypeVar("H")  # Height
 N = TypeVar("N")  # Generic size
 M = TypeVar("M")  # Generic size
 T = TypeVar("T")  # Timesteps
+
+Timestep = Union[int, Sequence[int], TensorType["B", "int"]]
 
 
 def univariate_gaussian_sample(n: int, μ: float = 0, σ: float = 1) -> TensorType["N", "float"]:

@@ -1,4 +1,4 @@
-from typing import TypeVar, Union, Sequence
+from typing import Sequence, TypeVar, Union
 
 import torch
 from torchtyping import TensorType

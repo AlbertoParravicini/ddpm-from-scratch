@@ -3,8 +3,7 @@ from typing import Callable, Optional, Sequence, Union
 import torch
 from torchtyping import TensorType
 
-from ddpm_from_scratch.utils import T, B, Timestep
-
+from ddpm_from_scratch.utils import B, T, Timestep
 
 
 def expand_to_dims(x: torch.Tensor, y: torch.Tensor):

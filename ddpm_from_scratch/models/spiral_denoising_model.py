@@ -56,7 +56,9 @@ class SpiralDenoisingModel(nn.Module):
         self.embedding_3 = SinusoidalEncoding(32, maximum_length=1000)
         self.dense_4 = nn.Linear(32, 2)
 
-    def forward(self, t: TensorType["B", "int"], x: TensorType["B", "N", "2", "float"]) -> TensorType["B", "N", "2", "float"]:
+    def forward(
+        self, t: TensorType["B", "int"], x: TensorType["B", "N", "2", "float"]
+    ) -> TensorType["B", "N", "2", "float"]:
         # If x is given without batch size, we remove it at the end
         x_shape_len = len(x.shape)
         # Sum the positional embedding at every layer.

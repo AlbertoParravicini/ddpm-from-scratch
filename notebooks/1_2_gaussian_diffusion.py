@@ -1,6 +1,8 @@
+import os
 from pathlib import Path
 from typing import Callable, Optional
 
+import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 import numpy as np
 from segretini_matplottini.utils.colors import PALETTE_1
@@ -217,14 +219,24 @@ if __name__ == "__main__":
     save_plot(PLOT_DIR, "1_2_gaussian_diffusion_forward.png", create_date_dir=False, bbox_inches="tight")
 
     # Try removing noise from the spiral. We don't have a model, so our "model" will just return random noise
-    fig, ax = plt.subplots(ncols=discrete_steps, figsize=(6 * discrete_steps, 6))
-    sample = samples[-1]
-    for i, t in enumerate(np.linspace(1, 0, discrete_steps)):
-        timestep = min(int(t * num_timesteps), num_timesteps - 1)
-        sample, _ = gaussian_diffusion.backward_sample(timestep, sample, add_noise=t != 0)
-        # Plot the spiral
-        ax[i].scatter(sample[:, 0], sample[:, 1], color=PALETTE_1[-2], alpha=0.8, edgecolor="#2f2f2f", lw=0.5)
-        ax[i].set_title(f"Noise becoming a spiral? Step {t}")
-        ax[i].set_xlim((-1, 1))  # enforce axes limits as we add noise
-        ax[i].set_ylim((-1, 1))
-    save_plot(PLOT_DIR, "1_2_gaussian_diffusion_backward.png", create_date_dir=False, bbox_inches="tight")
+    X_noisy = samples[-1]
+    with imageio.get_writer(PLOT_DIR / "1_2_gaussian_diffusion_backward.gif", mode="I") as writer:  # Create a GIF!
+        for i, t in enumerate(np.linspace(1, 0, num_timesteps)):
+            # Get timestep, in the range [0, num_timesteps)
+            timestep = min(int(t * num_timesteps), num_timesteps - 1)
+            # Inference, predict the next step given the current one
+            X_noisy, X_0 = gaussian_diffusion.backward_sample(timestep, X_noisy, add_noise=t != 0)
+            # Plot the current spiral, every few steps
+            if timestep % (num_timesteps // 20) == 0 or timestep == num_timesteps - 1:
+                plt.figure(figsize=(6, 6))
+                plt.scatter(X_noisy[:, 0], X_noisy[:, 1], color=PALETTE_1[-2], alpha=0.8, edgecolor="#2f2f2f", lw=0.5)
+                plt.title("Noise becoming a spiral? " + r"$q(x_{t - 1} | x_t, \hat{x}_0), t=$" + f"{timestep}")
+                plt.xlim((-1, 1))
+                plt.ylim((-1, 1))
+                # Create a temporary file to assemble the GIF
+                filename = f"1_2_gaussian_diffusion_backward_{timestep}.jpeg"
+                save_plot(PLOT_DIR, filename, create_date_dir=False)
+                image = imageio.imread(PLOT_DIR / filename)
+                writer.append_data(image)
+                os.remove(PLOT_DIR / filename)
+                plt.close()

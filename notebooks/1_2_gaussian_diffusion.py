@@ -192,7 +192,7 @@ if __name__ == "__main__":
     PLOT_DIR.mkdir(exist_ok=True, parents=True)
 
     # Create a spiral, and add noise using the new distribution
-    x, y = make_spiral(1000, normalize=1)
+    x, y = make_spiral(1000, normalize=True)
     num_timesteps = 1000
     βs = linear_beta_schedule(num_timesteps, 8e-6, 9e-5)
     X = np.array([x, y]).T  # Turn the spiral into a matrix, this is timestep 0

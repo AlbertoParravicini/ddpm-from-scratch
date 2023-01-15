@@ -27,3 +27,21 @@ Notebooks inside `notebooks` follow the original blogs. You can run them to obta
     * Part 2: [link](https://liorsinai.github.io/coding/2022/12/29/denoising-diffusion-2-unet.html)
     * Part 3: [link](https://liorsinai.github.io/coding/2023/01/04/denoising-diffusion-3-guidance.html)
     * GitHub: [library](https://github.com/LiorSinai/DenoisingDiffusion.jl) and [examples](https://github.com/LiorSinai/DenoisingDiffusion-examples)
+
+* **From ELBO to DDPM**, Jake Tae, 2021. [link](https://jaketae.github.io/study/elbo/)
+    * A very optimistic 7-minutes read that explains how to derive the loss function in DDPM starting from ELBO, and its connection to KL divergence.
+
+* **What are Diffusion Models?**, Lilian Weng, 2021. [Link](https://lilianweng.github.io/posts/2021-07-11-diffusion-models/)
+    * Introduction to diffusion models. It has a good derivation of the loss function and of DDIM.
+
+* **Denoising Diffusion Probabilistic Models**, Jonathan Ho et al., 2020. [link](https://arxiv.org/pdf/2006.11239.pdf)
+    * The original DDPM paper. Very well written, but some steps are better explained in the blogs above.
+
+* **Denoising Diffusion Implicit Models**, Jiaming Song et al., 2021. [link](https://arxiv.org/pdf/2010.02502.pdf)
+    * The original DDIM paper.
+
+* **Deep Unsupervised Learning using Nonequilibrium Thermodynamics**, Jascha Sohl-Dickstein et al., 2015. [link](https://arxiv.org/pdf/1503.03585.pdf)
+    * The paper that introduced diffusion models. The section `2.3` on Model Probability has a good derivation of the loss function.
+
+* **Score-Based Generative Modeling Through Stochastic Differential Equations**, Yang Song et al., 2021. [link](https://arxiv.org/pdf/2011.13456.pdf)
+    * Treating diffusion models as SDE. A more advanced read, necessary to understand samplers such as DPM

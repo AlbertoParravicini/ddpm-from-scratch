@@ -12,30 +12,28 @@ from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 from tqdm import tqdm
 
 from ddpm_from_scratch.ddpm import DDPM
-from ddpm_from_scratch.models.spiral_denoising_model import (
-    SinusoidalEncoding, SpiralDenoisingModel)
-from ddpm_from_scratch.utils import (COOL_GREEN, linear_beta_schedule,
-                                     make_spiral)
+from ddpm_from_scratch.models.spiral_denoising_model import SinusoidalEncoding, SpiralDenoisingModel
+from ddpm_from_scratch.utils import COOL_GREEN, linear_beta_schedule, make_spiral
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 
 
 #%%
 if __name__ == "__main__":
-    # Setup
+    # Setup.
     np.random.seed(seed=42)
     reset_plot_style(xtick_major_pad=4, ytick_major_pad=4, border_width=1.5, label_pad=4)
     PLOT_DIR.mkdir(exist_ok=True, parents=True)
 
-    # Create a Sinusoidal encoding, and plot encodings, to check that they have the expected shape
+    # Create a Sinusoidal encoding, and plot encodings, to check that they have the expected shape.
     sinus = SinusoidalEncoding(32, 50)
     sns.heatmap(sinus.pe.T.numpy())
     save_plot(PLOT_DIR, "1_3_sinusoidal_encodings.png", create_date_dir=False)
 
-    # Define the denoising model
+    # Define the denoising model.
     model = SpiralDenoisingModel()
 
-    # Define the optimizer
+    # Define the optimizer.
     optimizer = torch.optim.Adam(model.parameters())
 
     # Create the diffusion process. It is the same as `notebooks/1_2_gaussian_diffusion.py`, but rewritten in Pytorch.
@@ -44,14 +42,14 @@ if __name__ == "__main__":
     betas = linear_beta_schedule(num_timesteps, 8e-6, 9e-5)
     ddpm = DDPM(num_timesteps, betas, model)
 
-    # Create a spiral, and add noise using the new distribution
+    # Create a spiral, and add noise using the new distribution.
     X = make_spiral(1000, normalize=True)
 
-    #%% Train the model
-    num_training_steps = 10000
-    batch_size = 16
+    #%% Train the model.
+    num_training_steps = 20000
+    batch_size = 32
     losses = []
-    # Replicate the spiral to obtain the desired batch size
+    # Replicate the spiral to obtain the desired batch size.
     X_train = X.repeat([batch_size, 1, 1])
     # Training loop
     progress_bar = tqdm(range(num_training_steps), desc="training")

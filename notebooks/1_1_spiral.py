@@ -96,7 +96,7 @@ if __name__ == "__main__":
     save_plot(PLOT_DIR, "1_1_gaussian_dist.png", create_date_dir=False)
 
     #%% Draw a spiral
-    x, y = make_spiral(1000, normalize=1)
+    x, y = make_spiral(1000, normalize=True)
     plt.figure(figsize=(6, 6))
     plt.scatter(x, y, color=PALETTE_1[-2], alpha=0.8, edgecolor="#2f2f2f", lw=0.5)
     plt.title("A spiral")

@@ -71,3 +71,17 @@ def linear_beta_schedule(
     β_start *= scale
     β_end *= scale
     return torch.linspace(β_start, β_end, num_timesteps)
+
+
+def expand_to_dims(x: torch.Tensor, y: torch.Tensor):
+    """
+    Expand the shape of `x` to match the number of dimensions of `y`, by adding
+    size-1 dimensions to `x`. For example, if `x` has shape `[4]` and `y` has shape `[4, 2, 3]`,
+    the expanded `x` has shape `[4, 1, 1]`.
+    This is useful to broadcast an array of values (`x`) over all the other dimensions of `y`.
+
+    :param x: a tensor to expand
+    :param y: tensor whose number of dimensions must be matched
+    :return: the expanded input tensor
+    """
+    return x[(...,) + (None,) * (len(y.shape) - len(x.shape))]

@@ -7,6 +7,7 @@
 !LICENSE
 !pyproject.toml
 !poetry.lock
+!mypy.ini
 
 # Add python code
 !ddpm_from_scratch

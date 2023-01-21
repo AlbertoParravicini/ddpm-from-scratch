@@ -18,7 +18,7 @@ PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
 
 
-def plot_forward_coefficients(betas: TensorType["T"], ddpm: DDPM, title: str, filename: str):
+def plot_forward_coefficients(betas: TensorType["T"], ddpm: DDPM, title: str, filename: str, β_start: float = 1e-6, β_end: float = 0.015):
     reset_plot_style(xtick_major_pad=4, ytick_major_pad=4, border_width=1.5, label_pad=4, grid_linewidth=0.4)
     num_plots = 4
     num_timesteps = ddpm.num_timesteps
@@ -35,15 +35,27 @@ def plot_forward_coefficients(betas: TensorType["T"], ddpm: DDPM, title: str, fi
         xy=(0.02, 0.85),
         xycoords="axes fraction",
     )
+    ax[3].annotate(
+        r"$\beta_T = $" + f"{betas[-1]:.4f}",
+        xy=(0.86, 0.05),
+        xycoords="axes fraction",
+    )
     for _ax in ax:
         _ax.set_xlim(0, num_timesteps)
         _ax.legend(loc="upper right")
         _ax.grid(axis="x")
+        # Enforce consistent formatting for the y-axis, so we can create smooth GIFs.
+        _ax.yaxis.set_major_locator(plt.LinearLocator(numticks=5))
+        _ax.yaxis.set_major_formatter(lambda x, pos: f"{x:.4f}")
+    ax[0].set_ylim(β_start, β_end)
+    ax[1].set_ylim(1 - β_end, 1 - β_start)
+    ax[2].set_ylim(0, 1)
+    ax[3].set_ylim(0, 1)
     plt.suptitle(title)
     save_plot(PLOT_DIR, filename, create_date_dir=False, bbox_inches="tight")
 
 
-def plot_posterior_coefficients(betas: TensorType["T"], ddpm: DDPM, title: str, filename: str):
+def plot_posterior_coefficients(betas: TensorType["T"], ddpm: DDPM, title: str, filename: str, β_end: float = 0.015):
     reset_plot_style(xtick_major_pad=4, ytick_major_pad=4, border_width=1.5, label_pad=4, grid_linewidth=0.4)
     num_plots = 3
     num_timesteps = ddpm.num_timesteps
@@ -54,6 +66,11 @@ def plot_posterior_coefficients(betas: TensorType["T"], ddpm: DDPM, title: str, 
     ax[0].annotate(
         r"$x_t\, \sim\, \mathcal{N}(\sqrt{\bar{\alpha}_t}x_0,\, (1 - \bar{\alpha}_t)\mathbf{I})$",
         xy=(0.02, 0.85),
+        xycoords="axes fraction",
+    )
+    ax[0].annotate(
+        r"$\beta_T = $" + f"{betas[-1]:.4f}",
+        xy=(0.86, 0.05),
         xycoords="axes fraction",
     )
     ax[1].plot(np.arange(num_timesteps), ddpm.posterior_mean_x_0_coeff, lw=1, label=r"$\bar{\mu}_t,\, x_0$")
@@ -73,6 +90,12 @@ def plot_posterior_coefficients(betas: TensorType["T"], ddpm: DDPM, title: str, 
         _ax.set_xlim(0, num_timesteps)
         _ax.legend(loc="upper right")
         _ax.grid(axis="x")
+        # Enforce consistent formatting for the y-axis, so we can create smooth GIFs.
+        _ax.yaxis.set_major_locator(plt.LinearLocator(numticks=5))
+        _ax.yaxis.set_major_formatter(lambda x, pos: f"{x:.4f}")
+    ax[0].set_ylim(0, 1)
+    ax[1].set_ylim(0, 1)
+    ax[2].set_ylim(0, β_end)
     plt.suptitle(title)
     save_plot(PLOT_DIR, filename, create_date_dir=False, bbox_inches="tight")
 
@@ -95,6 +118,8 @@ if __name__ == "__main__":
         ddpm,
         title="Linear " + r"$\beta_t$" + " schedule, " + r"$t=$" + f"{num_timesteps}",
         filename="1_4_linear_betas.png",
+        β_start=betas[0] * 0.9,
+        β_end=betas[-1] * 1.1,
     )
     # When looking at the posterior process coefficients, i.e. q(x_t-1 | x_t, x_0) ~ N(mu_hat, beta_hat),
     # we see how the variance increases linearly over time,
@@ -110,6 +135,7 @@ if __name__ == "__main__":
         + f"{num_timesteps}, "
         + r"$q(x_{t-1} | x_t, x_0) \sim \mathcal{N}(\bar{\mu}_t,\, \bar{\beta}_t)$",
         filename="1_4_posterior_coefficients_linear_beta.png",
+        β_end=betas[-1] * 1.1,
     )
 
     #%% Do the same thing, but now we use just 100 timesteps.
@@ -125,6 +151,8 @@ if __name__ == "__main__":
         ddpm,
         title="Linear " + r"$\beta_t$" + " schedule, " + r"$t=$" + f"{num_timesteps}",
         filename="1_4_linear_betas_100_steps.png",
+        β_start=betas[0] * 0.9,
+        β_end=betas[-1] * 1.1,
     )
     # Here the coefficients of bar_mu are not quite the same. Proportionally,
     # the estimate of x_0 becomes relevant earlier in the denoising process.
@@ -138,6 +166,7 @@ if __name__ == "__main__":
         + f"{num_timesteps}, "
         + r"$q(x_{t-1} | x_t, x_0) \sim \mathcal{N}(\bar{\mu}_t,\, \bar{\beta}_t)$",
         filename="1_4_posterior_coefficients_linear_beta_100_steps.png",
+        β_end=betas[-1] * 1.1,
     )
 
     #%% LDM and Stable Diffusion use a different beta schedule that decreases noise in a smoother way.
@@ -152,6 +181,8 @@ if __name__ == "__main__":
         ddpm,
         title="Scaled linear " + r"$\beta_t$" + " schedule, " + r"$t=$" + f"{num_timesteps}",
         filename="1_4_scaled_linear_betas.png",
+        β_start=betas[0] * 0.9,
+        β_end=betas[-1] * 1.1,
     )
     plot_posterior_coefficients(
         betas,
@@ -163,6 +194,7 @@ if __name__ == "__main__":
         + f"{num_timesteps}, "
         + r"$q(x_{t-1} | x_t, x_0) \sim \mathcal{N}(\bar{\mu}_t,\, \bar{\beta}_t)$",
         filename="1_4_posterior_coefficients_scaled_linear_betas.png",
+        β_end=betas[-1] * 1.1,
     )
 
     #%% Why do we use those coefficients? Let's see what happens if we try different maximum betas.

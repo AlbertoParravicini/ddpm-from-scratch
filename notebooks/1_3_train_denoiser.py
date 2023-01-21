@@ -80,17 +80,20 @@ if __name__ == "__main__":
 
     #%% Do inference, starting from a noisy spiral
     X = make_spiral(1000, normalize=True)  # Create the spiral
-    X_noisy, _ = ddpm.forward_sample(num_timesteps - 1, X)  # Add noise
+    # Create a DDPM that does inference in fewer steps, but still uses the trained model
+    inference_steps = 200
+    ddpm_inference = DDPM(inference_steps, linear_beta_schedule(inference_steps), model)
+    X_noisy, _ = ddpm_inference.forward_sample(inference_steps - 1, X)  # Add noise
     with imageio.get_writer(PLOT_DIR / "1_3_inference.gif", mode="I") as writer:  # Create a GIF!
-        steps = np.linspace(1, 0, num_timesteps)
+        steps = np.linspace(1, 0, inference_steps)
         for i, t in tqdm(enumerate(steps), desc="inference", total=len(steps)):
             # Get timestep, in the range [0, num_timesteps)
-            timestep = min(int(t * num_timesteps), num_timesteps - 1)
+            timestep = min(int(t * inference_steps), inference_steps - 1)
             # Inference, predict the next step given the current one
             with torch.no_grad():
-                X_noisy, X_0 = ddpm.backward_sample(timestep, X_noisy, add_noise=t != 0)
+                X_noisy, X_0 = ddpm_inference.backward_sample(timestep, X_noisy, add_noise=t != 0)
             # Plot the denoised spiral, every few steps
-            if timestep % (num_timesteps // 20) == 0 or timestep == num_timesteps - 1:
+            if timestep % 5 == 0 or timestep == inference_steps - 1:
                 fig, ax = plt.subplots(ncols=2, figsize=(6 * 2, 6))
                 ax[0].scatter(
                     X_noisy[:, 0], X_noisy[:, 1], color=PALETTE_1[-2], alpha=0.8, edgecolor="#2f2f2f", lw=0.5

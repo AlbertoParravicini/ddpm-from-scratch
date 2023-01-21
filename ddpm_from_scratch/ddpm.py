@@ -41,8 +41,6 @@ class DDPM:
         self.sqrt_reciprocal_alpha_cumprods_minus_one = torch.sqrt(1 / self.alpha_cumprods - 1)
         # "beta_hat_t", β_t * (1 - α_hat_t-1) /  (1 - α_hat_t), variance of q(x_t-1 | x_t, x_0)
         self.posterior_variance = self.betas * (1 - self.alpha_cumprods_prevs) / (1 - self.alpha_cumprods)
-        # Used to avoid exponentials. Clipping done for numerical stability
-        self.log_clipped_posterior_variance = torch.log(torch.maximum(self.posterior_variance, torch.tensor(1e-20)))
         # "alpha_hat_t", mean of the backward process, as linear combination of x_t and x_0.
         self.posterior_mean_x_0_coeff = self.betas * torch.sqrt(self.alpha_cumprods_prevs) / (1 - self.alpha_cumprods)
         self.posterior_mean_x_t_coeff = (

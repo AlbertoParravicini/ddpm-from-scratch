@@ -53,7 +53,7 @@ if __name__ == "__main__":
     mnist, dataloader = load_mnist(DATA_DIR, batch_size=4)
 
     #%% Train the model, in the same way as before.
-    losses = train(dataloader=dataloader, sampler=ddpm, optimizer=optimizer, epochs=1)
+    losses = train(dataloader=dataloader, sampler=ddpm, optimizer=optimizer, epochs=3)
 
     #%% Plot the loss function
     plt.figure(figsize=(6, 6))

@@ -36,10 +36,10 @@ class UNetSimpleWithTimestep(UNetSimple):
         # Add a sinusoidal timestep encoding for each layer,
         # with the same size as the number of output channels of that layer
         self.downsample_timesteps = nn.ModuleDict(
-            {f"timestep_down_{i}": SinusoidalEncoding(self._channels[i + 1]) for i in range(len(self._channels) - 1)}
+            {f"timestep_down_{i}": SinusoidalEncoding(self._channels[i + 1], maximum_length=1024) for i in range(len(self._channels) - 1)}
         )
         self.upsample_timesteps = nn.ModuleDict(
-            {f"timestep_up_{i}": SinusoidalEncoding(self._channels[i]) for i in range(len(self._channels) - 1)[::-1]}
+            {f"timestep_up_{i}": SinusoidalEncoding(self._channels[i], maximum_length=1024) for i in range(len(self._channels) - 1)[::-1]}
         )
 
     def forward(
@@ -52,7 +52,8 @@ class UNetSimpleWithTimestep(UNetSimple):
             # Compute each downsample layer
             x = layer(x)
             # Add the timestep to the layer output
-            x = x + expand_to_dims(emb(t), x).repeat(1, 1, *x.shape[-2:])  # Replicate time embedding to H and W
+            x = x + expand_to_dims(emb(t), x)  # Replicate time embedding to H and W
+            x = nn.functional.relu(x)
             xs.append(x)
         # Upsample pass
         for layer, emb in zip(self.upsample_layers.values(), self.upsample_timesteps.values()):
@@ -60,5 +61,6 @@ class UNetSimpleWithTimestep(UNetSimple):
             x = torch.cat([x, xs.pop()], dim=1)
             x = layer(x)
             # Add the timestep to the layer output
-            x = x + expand_to_dims(emb(t), x).repeat(1, 1, *x.shape[-2:])  # Replicate time embedding to H and W
+            x = x + expand_to_dims(emb(t), x)  # Replicate time embedding to H and W
+            x = nn.functional.relu(x)
         return x

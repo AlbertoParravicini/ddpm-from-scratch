@@ -72,10 +72,12 @@ class UNetSimple(nn.Module):
         for layer in self.downsample_layers.values():
             # Compute each downsample layer
             x = layer(x)
+            x = nn.functional.relu(x)
             xs.append(x)
         # Upsample pass
         for layer in self.upsample_layers.values():
             # Concatenate each input with the output of the corresponding downsample layer, on the channel dimension
             x = torch.cat([x, xs.pop()], dim=1)
             x = layer(x)
+            x = nn.functional.relu(x)
         return x

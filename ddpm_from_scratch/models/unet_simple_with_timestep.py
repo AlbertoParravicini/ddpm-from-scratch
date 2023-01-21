@@ -36,10 +36,16 @@ class UNetSimpleWithTimestep(UNetSimple):
         # Add a sinusoidal timestep encoding for each layer,
         # with the same size as the number of output channels of that layer
         self.downsample_timesteps = nn.ModuleDict(
-            {f"timestep_down_{i}": SinusoidalEncoding(self._channels[i + 1], maximum_length=1024) for i in range(len(self._channels) - 1)}
+            {
+                f"timestep_down_{i}": SinusoidalEncoding(self._channels[i + 1], maximum_length=1024)
+                for i in range(len(self._channels) - 1)
+            }
         )
         self.upsample_timesteps = nn.ModuleDict(
-            {f"timestep_up_{i}": SinusoidalEncoding(self._channels[i], maximum_length=1024) for i in range(len(self._channels) - 1)[::-1]}
+            {
+                f"timestep_up_{i}": SinusoidalEncoding(self._channels[i], maximum_length=1024)
+                for i in range(len(self._channels) - 1)[::-1]
+            }
         )
 
     def forward(

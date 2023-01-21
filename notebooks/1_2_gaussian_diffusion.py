@@ -156,7 +156,7 @@ class GaussianDiffusion:
         x_start: np.ndarray,
         clip_predicted_x_0: bool = True,
         add_noise: bool = True,
-    ) -> np.ndarray:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Obtain a sample of the backward process `q(x_t-1 | x_t, x_0)`,
         by predicting `x_0` using a denoising model, and then taking a step of the backward process.
@@ -175,10 +175,10 @@ class GaussianDiffusion:
             x_hat_0 = np.clip(x_hat_0, -1, 1)
         # Obtain the posterior mean and variance, and obtain a sample of q(x_t-1 | x_t, x_0)
         posterior_mean, posterior_variance = self._posterior_mean_variance(t, x_start=x_hat_0, x_t=x_start)
-        x_t_minus_one = posterior_mean
+        x_t_minus_one = np.array(posterior_mean)
         # Add noise to the sample, instead of taking a deterministic step
         if add_noise:
-            noise = np.random.randn(*x_start.shape)
+            noise: np.ndarray = np.random.randn(*x_start.shape)
             x_t_minus_one += np.sqrt(posterior_variance) * noise
         return x_t_minus_one, x_hat_0
 

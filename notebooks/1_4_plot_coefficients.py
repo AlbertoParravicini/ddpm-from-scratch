@@ -5,12 +5,14 @@ import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 import numpy as np
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
+from torchtyping import TensorType
 from tqdm import tqdm
 
 from ddpm_from_scratch.ddpm import DDPM
-from ddpm_from_scratch.models.spiral_denoising_model import SpiralDenoisingModel
-from ddpm_from_scratch.utils import linear_beta_schedule, scaled_linear_beta_schedule, T
-from torchtyping import TensorType
+from ddpm_from_scratch.models.spiral_denoising_model import \
+    SpiralDenoisingModel
+from ddpm_from_scratch.utils import (T, linear_beta_schedule,
+                                     scaled_linear_beta_schedule)
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -39,7 +41,7 @@ def plot_forward_coefficients(betas: TensorType["T"], ddpm: DDPM, title: str, fi
         _ax.grid(axis="x")
     plt.suptitle(title)
     save_plot(PLOT_DIR, filename, create_date_dir=False, bbox_inches="tight")
-    
+
 
 def plot_posterior_coefficients(betas: TensorType["T"], ddpm: DDPM, title: str, filename: str):
     reset_plot_style(xtick_major_pad=4, ytick_major_pad=4, border_width=1.5, label_pad=4, grid_linewidth=0.4)
@@ -101,7 +103,12 @@ if __name__ == "__main__":
     plot_posterior_coefficients(
         betas,
         ddpm,
-        title="Linear " + r"$\beta_t$" + " schedule, " + r"$t=$" + f"{num_timesteps}, " + r"$q(x_{t-1} | x_t, x_0) \sim \mathcal{N}(\bar{\mu}_t,\, \bar{\beta}_t)$",
+        title="Linear "
+        + r"$\beta_t$"
+        + " schedule, "
+        + r"$t=$"
+        + f"{num_timesteps}, "
+        + r"$q(x_{t-1} | x_t, x_0) \sim \mathcal{N}(\bar{\mu}_t,\, \bar{\beta}_t)$",
         filename="1_4_posterior_coefficients_linear_beta.png",
     )
 
@@ -119,12 +126,17 @@ if __name__ == "__main__":
         title="Linear " + r"$\beta_t$" + " schedule, " + r"$t=$" + f"{num_timesteps}",
         filename="1_4_linear_betas_100_steps.png",
     )
-    # Here the coefficients of bar_mu are not quite the same. Proportionally, 
+    # Here the coefficients of bar_mu are not quite the same. Proportionally,
     # the estimate of x_0 becomes relevant earlier in the denoising process.
     plot_posterior_coefficients(
         betas,
         ddpm,
-        title="Linear " + r"$\beta_t$" + " schedule, " + r"$t=$" + f"{num_timesteps}, " + r"$q(x_{t-1} | x_t, x_0) \sim \mathcal{N}(\bar{\mu}_t,\, \bar{\beta}_t)$",
+        title="Linear "
+        + r"$\beta_t$"
+        + " schedule, "
+        + r"$t=$"
+        + f"{num_timesteps}, "
+        + r"$q(x_{t-1} | x_t, x_0) \sim \mathcal{N}(\bar{\mu}_t,\, \bar{\beta}_t)$",
         filename="1_4_posterior_coefficients_linear_beta_100_steps.png",
     )
 
@@ -144,7 +156,12 @@ if __name__ == "__main__":
     plot_posterior_coefficients(
         betas,
         ddpm,
-        title="Scaled linear " + r"$\beta_t$" + " schedule, " + r"$t=$" + f"{num_timesteps}, " + r"$q(x_{t-1} | x_t, x_0) \sim \mathcal{N}(\bar{\mu}_t,\, \bar{\beta}_t)$",
+        title="Scaled linear "
+        + r"$\beta_t$"
+        + " schedule, "
+        + r"$t=$"
+        + f"{num_timesteps}, "
+        + r"$q(x_{t-1} | x_t, x_0) \sim \mathcal{N}(\bar{\mu}_t,\, \bar{\beta}_t)$",
         filename="1_4_posterior_coefficients_scaled_linear_betas.png",
     )
 
@@ -162,7 +179,13 @@ if __name__ == "__main__":
             plot_forward_coefficients(
                 betas,
                 ddpm,
-                title="Scaled linear " + r"$\beta_t$" + " schedule, " + r"$t=$" + f"{num_timesteps}, " + r"$\beta_T=$" + f"{b:.4f}",
+                title="Scaled linear "
+                + r"$\beta_t$"
+                + " schedule, "
+                + r"$t=$"
+                + f"{num_timesteps}, "
+                + r"$\beta_T=$"
+                + f"{b:.4f}",
                 filename=plot_name,
             )
             image = imageio.imread(PLOT_DIR / plot_name)
@@ -175,7 +198,9 @@ if __name__ == "__main__":
     # But if β_end is too high and num_timesteps is too small, we observe numerical instability,
     # with bar_mu coefficients collapsing to zero instead of remaining approximately complementary.
     num_timesteps = 1000
-    with imageio.get_writer(PLOT_DIR / "1_4_posterior_coefficients_scaled_linear_betas_range.gif", mode="I") as writer:  # Create a GIF!
+    with imageio.get_writer(
+        PLOT_DIR / "1_4_posterior_coefficients_scaled_linear_betas_range.gif", mode="I"
+    ) as writer:  # Create a GIF!
         for i, b in tqdm(enumerate(max_beta_range)):
             betas = linear_beta_schedule(num_timesteps, β_end=b)
             model = SpiralDenoisingModel()
@@ -184,7 +209,13 @@ if __name__ == "__main__":
             plot_posterior_coefficients(
                 betas,
                 ddpm,
-                title="Scaled linear " + r"$\beta_t$" + " schedule, " + r"$t=$" + f"{num_timesteps}, " + r"$q(x_{t-1} | x_t, x_0) \sim \mathcal{N}(\bar{\mu}_t,\, \bar{\beta}_t),\ \beta_T=$" + f"{b:.4f}",
+                title="Scaled linear "
+                + r"$\beta_t$"
+                + " schedule, "
+                + r"$t=$"
+                + f"{num_timesteps}, "
+                + r"$q(x_{t-1} | x_t, x_0) \sim \mathcal{N}(\bar{\mu}_t,\, \bar{\beta}_t),\ \beta_T=$"
+                + f"{b:.4f}",
                 filename=plot_name,
             )
             image = imageio.imread(PLOT_DIR / plot_name)

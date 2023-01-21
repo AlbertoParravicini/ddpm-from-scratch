@@ -87,16 +87,15 @@ class DDPM:
         :return: prediction of `x_0` and prediction of the noise added to `x_0` to obtain `x_start`
         """
         # Ensure the timestep is an integer tensor
-        if not torch.is_tensor(t):
-            t: torch.Tensor = torch.tensor(t, dtype=torch.long, device=x_start.device)
+        _t: torch.Tensor = torch.tensor(t, dtype=torch.long, device=x_start.device) if not torch.is_tensor(t) else t
         # Ensure the timestep is not a scalar, it must have at least 1 dimension
-        if len(t.shape) == 0:
-            t = t.unsqueeze(0)
+        if len(_t.shape) == 0:
+            _t = _t.unsqueeze(0)
         # Predict noise with our model
         noise = self.denoise_function(t, x_start)
         # Since `t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_start`.
-        coeff_x_t = expand_to_dims(self.sqrt_reciprocal_alpha_cumprods[t], x_start)
-        coeff_noise = expand_to_dims(self.sqrt_reciprocal_alpha_cumprods_minus_one[t], x_start)
+        coeff_x_t = expand_to_dims(self.sqrt_reciprocal_alpha_cumprods[_t], x_start)
+        coeff_noise = expand_to_dims(self.sqrt_reciprocal_alpha_cumprods_minus_one[_t], x_start)
         x_hat_0 = coeff_x_t * x_start - coeff_noise * noise / coeff_x_t
         return x_hat_0, noise
 

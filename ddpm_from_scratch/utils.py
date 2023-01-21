@@ -59,7 +59,7 @@ def linear_beta_schedule(
     Create a variance schedule (`beta schedule`) with linearly spaced values from a starting value
     to an ending value. Default values are the ones commonly used in LDM/Stable Diffusion.
 
-    :param num_timesteps: number of values in the generated schedule. 
+    :param num_timesteps: number of values in the generated schedule.
     :param β_start: starting value of the beta schedule, at timestep 0
     :param β_end: ending value of the beta schedule, at timestep T
     :param num_train_timesteps: reference value for the number timesteps. In DDPM, a large value (like 1000).
@@ -80,12 +80,12 @@ def scaled_linear_beta_schedule(
     """
     Create a variance schedule (`beta schedule`) with linearly spaced values from a starting value
     to an ending value. The schedule is scaled by using the square root of the provided β values,
-    and the overall schedule is squared. This scaling results in a smoother curve with 
+    and the overall schedule is squared. This scaling results in a smoother curve with
     noise variance that becomes lower earlier in the generation process, instead
     of becoming small only in the latest steps.
     Default values are the ones commonly used in LDM/Stable Diffusion.
 
-    :param num_timesteps: number of values in the generated schedule. 
+    :param num_timesteps: number of values in the generated schedule.
     :param β_start: starting value of the beta schedule, at timestep 0
     :param β_end: ending value of the beta schedule, at timestep T
     :param num_train_timesteps: reference value for the number timesteps. In DDPM, a large value (like 1000).

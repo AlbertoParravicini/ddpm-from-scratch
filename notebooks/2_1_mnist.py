@@ -6,17 +6,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+import torchvision.transforms as T
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
+from torch.utils.data import DataLoader
+from torchtyping import TensorType
+from torchvision.datasets.mnist import MNIST
+from torchvision.utils import make_grid
 from tqdm import tqdm
 
-import torchvision.transforms as T
 from ddpm_from_scratch.ddpm import DDPM
 from ddpm_from_scratch.models.unet_simple import UNetSimple
 from ddpm_from_scratch.utils import linear_beta_schedule
-from torchvision.datasets.mnist import MNIST
-from torch.utils.data import DataLoader
-from torchtyping import TensorType
-from torchvision.utils import make_grid
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -126,4 +126,3 @@ if __name__ == "__main__":
                 image = imageio.imread(PLOT_DIR / filename)
                 writer.append_data(image)
                 os.remove(PLOT_DIR / filename)
-

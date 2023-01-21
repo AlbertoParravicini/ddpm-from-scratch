@@ -42,7 +42,7 @@ if __name__ == "__main__":
     # Check out `ddpm_from_scratch/ddpm.py` for the Pytorch implementation.
     num_timesteps = 1000
     betas = linear_beta_schedule(num_timesteps, 8e-6, 9e-5)
-    ddpm = DDPM(num_timesteps, betas, model)
+    ddpm = DDPM(betas, model)
 
     # Create a spiral, and add noise using the new distribution.
     X = make_spiral(1000, normalize=True)
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     X = make_spiral(1000, normalize=True)  # Create the spiral
     # Create a DDPM that does inference in fewer steps, but still uses the trained model
     inference_steps = 200
-    ddpm_inference = DDPM(inference_steps, linear_beta_schedule(inference_steps), model)
+    ddpm_inference = DDPM(linear_beta_schedule(inference_steps), model)
     X_noisy, _ = ddpm_inference.forward_sample(inference_steps - 1, X)  # Add noise
     with imageio.get_writer(PLOT_DIR / "1_3_inference.gif", mode="I") as writer:  # Create a GIF!
         steps = np.linspace(1, 0, inference_steps)

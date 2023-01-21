@@ -52,7 +52,7 @@ if __name__ == "__main__":
     # Create the diffusion process.
     num_timesteps = 1000
     betas = linear_beta_schedule(num_timesteps, 8e-6, 9e-5)
-    ddpm = DDPM(num_timesteps, betas, model)
+    ddpm = DDPM(betas, model)
 
     # Load the MNIST dataset
     mnist = MNIST(

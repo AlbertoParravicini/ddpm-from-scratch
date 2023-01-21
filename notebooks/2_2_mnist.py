@@ -1,27 +1,18 @@
-import os
 from pathlib import Path
 
-import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
-import torchvision.transforms as T
-from imageio.core.format import Format
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
-from torch.utils.data import DataLoader
-from torchtyping import TensorType
-from torchvision.datasets.mnist import MNIST
-from torchvision.utils import make_grid
-from tqdm import tqdm
 
 from ddpm_from_scratch.ddpm import DDPM
 from ddpm_from_scratch.engines.mnist import (MnistInferenceGifCallback,
                                              get_one_element_per_digit,
                                              inference, load_mnist, train)
 from ddpm_from_scratch.models.unet_simple_with_timestep import \
-    UNetSimpleWithTimestep
-from ddpm_from_scratch.utils import linear_beta_schedule
+    UNetSimpleWithTimestep, UNetSimple
+from ddpm_from_scratch.utils import linear_beta_schedule, scaled_linear_beta_schedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -44,13 +35,13 @@ if __name__ == "__main__":
     # Create the diffusion process.
     num_timesteps = 1000
     betas = linear_beta_schedule(num_timesteps, 8e-6, 9e-5)
-    ddpm = DDPM(num_timesteps, betas, model)
+    ddpm = DDPM(betas, model)
 
     # Load the MNIST dataset.
-    mnist, dataloader = load_mnist(DATA_DIR, batch_size=4)
+    mnist, dataloader = load_mnist(DATA_DIR, batch_size=8)
 
     #%% Train the model, in the same way as before.
-    losses = train(dataloader=dataloader, sampler=ddpm, optimizer=optimizer, epochs=3)
+    losses = train(dataloader=dataloader, sampler=ddpm, optimizer=optimizer, epochs=1)
 
     #%% Plot the loss function
     plt.figure(figsize=(6, 6))

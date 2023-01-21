@@ -107,7 +107,7 @@ if __name__ == "__main__":
     num_timesteps = 1000
     betas = linear_beta_schedule(num_timesteps)
     model = SpiralDenoisingModel()
-    ddpm = DDPM(num_timesteps, betas, model)
+    ddpm = DDPM(betas, model)
 
     # Plot the beta schedule, alphas, and the coefficients of the forward process q(x_t | x_0),
     # which defines x_t ~ N(sqrt(cumprod_alpha_t) * x_0, (1 - cumprod_alpha_t) * I).
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     num_timesteps = 100
     betas = linear_beta_schedule(num_timesteps)
     model = SpiralDenoisingModel()
-    ddpm = DDPM(num_timesteps, betas, model)
+    ddpm = DDPM(betas, model)
 
     # Plot again the beta schedule, alphas, and the coefficients of the forward process q(x_t | x_0).
     plot_forward_coefficients(
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     num_timesteps = 1000
     betas = scaled_linear_beta_schedule(num_timesteps)
     model = SpiralDenoisingModel()
-    ddpm = DDPM(num_timesteps, betas, model)
+    ddpm = DDPM(betas, model)
 
     # Plot again the beta schedule, alphas, and the coefficients of the forward process q(x_t | x_0).
     plot_forward_coefficients(
@@ -206,7 +206,7 @@ if __name__ == "__main__":
         for i, b in tqdm(enumerate(max_beta_range)):
             betas = scaled_linear_beta_schedule(num_timesteps, β_end=b)
             model = SpiralDenoisingModel()
-            ddpm = DDPM(num_timesteps, betas, model)
+            ddpm = DDPM(betas, model)
             plot_name = f"1_4_scaled_linear_betas_range_{i}.png"
             plot_forward_coefficients(
                 betas,
@@ -236,7 +236,7 @@ if __name__ == "__main__":
         for i, b in tqdm(enumerate(max_beta_range)):
             betas = linear_beta_schedule(num_timesteps, β_end=b)
             model = SpiralDenoisingModel()
-            ddpm = DDPM(num_timesteps, betas, model)
+            ddpm = DDPM(betas, model)
             plot_name = f"1_4_posterior_coefficients_scaled_linear_betas_range_{i}.png"
             plot_posterior_coefficients(
                 betas,

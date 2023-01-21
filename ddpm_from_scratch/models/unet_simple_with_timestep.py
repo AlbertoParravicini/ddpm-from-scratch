@@ -9,6 +9,20 @@ from ddpm_from_scratch.models.unet_simple import UNetSimple
 from ddpm_from_scratch.utils import B, C, H, W, expand_to_dims
 
 
+class TimestepEmbedding(nn.Module):
+    def __init__(self, output_channels: int, hidden_channels: int = 16):
+        super().__init__()
+        self.timestep_embedding =  nn.Sequential(
+            SinusoidalEncoding(hidden_channels, maximum_length=1024),
+            nn.Linear(hidden_channels, hidden_channels),
+            nn.SiLU(),
+            nn.Linear(hidden_channels, output_channels),
+        )
+
+    def forward(self, t: TensorType["B", "int"]) -> TensorType["B", "C"]:
+        return self.timestep_embedding(t)
+
+
 class UNetSimpleWithTimestep(UNetSimple):
     def __init__(
         self,
@@ -37,13 +51,13 @@ class UNetSimpleWithTimestep(UNetSimple):
         # with the same size as the number of output channels of that layer
         self.downsample_timesteps = nn.ModuleDict(
             {
-                f"timestep_down_{i}": SinusoidalEncoding(self._channels[i + 1], maximum_length=1024)
+                f"timestep_down_{i}": TimestepEmbedding(self._channels[i + 1])
                 for i in range(len(self._channels) - 1)
             }
         )
         self.upsample_timesteps = nn.ModuleDict(
             {
-                f"timestep_up_{i}": SinusoidalEncoding(self._channels[i], maximum_length=1024)
+                f"timestep_up_{i}": TimestepEmbedding(self._channels[i])
                 for i in range(len(self._channels) - 1)[::-1]
             }
         )

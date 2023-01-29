@@ -12,7 +12,7 @@ from ddpm_from_scratch.utils import B, C, H, W, expand_to_dims
 class TimestepEmbedding(nn.Module):
     def __init__(self, output_channels: int, hidden_channels: int = 16):
         super().__init__()
-        self.timestep_embedding =  nn.Sequential(
+        self.timestep_embedding = nn.Sequential(
             SinusoidalEncoding(hidden_channels, maximum_length=1024),
             nn.Linear(hidden_channels, hidden_channels),
             nn.SiLU(),
@@ -50,16 +50,10 @@ class UNetSimpleWithTimestep(UNetSimple):
         # Add a sinusoidal timestep encoding for each layer,
         # with the same size as the number of output channels of that layer
         self.downsample_timesteps = nn.ModuleDict(
-            {
-                f"timestep_down_{i}": TimestepEmbedding(self._channels[i + 1])
-                for i in range(len(self._channels) - 1)
-            }
+            {f"timestep_down_{i}": TimestepEmbedding(self._channels[i + 1]) for i in range(len(self._channels) - 1)}
         )
         self.upsample_timesteps = nn.ModuleDict(
-            {
-                f"timestep_up_{i}": TimestepEmbedding(self._channels[i])
-                for i in range(len(self._channels) - 1)[::-1]
-            }
+            {f"timestep_up_{i}": TimestepEmbedding(self._channels[i]) for i in range(len(self._channels) - 1)[::-1]}
         )
 
     def forward(

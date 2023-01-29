@@ -12,6 +12,12 @@ H = TypeVar("H")  # Height
 N = TypeVar("N")  # Generic size
 M = TypeVar("M")  # Generic size
 T = TypeVar("T")  # Timesteps
+C1 = TypeVar("C1")  # Number of color channels
+W1 = TypeVar("W1")  # Width
+H1 = TypeVar("H1")  # Height
+C2 = TypeVar("C2")  # Number of color channels
+W2 = TypeVar("W2")  # Width
+H2 = TypeVar("H2")  # Height
 
 Timestep = Union[int, Sequence[int], TensorType["B", "int"]]
 

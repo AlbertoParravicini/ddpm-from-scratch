@@ -12,10 +12,8 @@ from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 from tqdm import tqdm
 
 from ddpm_from_scratch.ddpm import DDPM
-from ddpm_from_scratch.models.spiral_denoising_model import (
-    SinusoidalEncoding, SpiralDenoisingModel)
-from ddpm_from_scratch.utils import (COOL_GREEN, linear_beta_schedule,
-                                     make_spiral)
+from ddpm_from_scratch.models.spiral_denoising_model import SinusoidalEncoding, SpiralDenoisingModel
+from ddpm_from_scratch.utils import COOL_GREEN, linear_beta_schedule, make_spiral
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 
@@ -49,7 +47,7 @@ if __name__ == "__main__":
 
     #%% Train the model.
     num_training_steps = 20000
-    batch_size = 32
+    batch_size = 1
     losses = []
     # Replicate the spiral to obtain the desired batch size.
     X_train = X.repeat([batch_size, 1, 1])
@@ -64,7 +62,7 @@ if __name__ == "__main__":
         with torch.no_grad():
             X_noisy, noise = ddpm.forward_sample(t, X_train)
         # Predict the noise
-        _, predicted_noise = ddpm.predict_x_0_and_noise(t, X_noisy)
+        x0_pred, predicted_noise = ddpm.predict_x_0_and_noise(t, X_noisy)
         # Compute loss, as L2 of real and predicted noise
         loss = torch.mean((noise - predicted_noise) ** 2)
         # Backward step

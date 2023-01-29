@@ -9,16 +9,16 @@ from torchtyping import TensorType
 from tqdm import tqdm
 
 from ddpm_from_scratch.ddpm import DDPM
-from ddpm_from_scratch.models.spiral_denoising_model import \
-    SpiralDenoisingModel
-from ddpm_from_scratch.utils import (T, linear_beta_schedule,
-                                     scaled_linear_beta_schedule)
+from ddpm_from_scratch.models.spiral_denoising_model import SpiralDenoisingModel
+from ddpm_from_scratch.utils import T, linear_beta_schedule, scaled_linear_beta_schedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
 
 
-def plot_forward_coefficients(betas: TensorType["T"], ddpm: DDPM, title: str, filename: str, β_start: float = 1e-6, β_end: float = 0.015):
+def plot_forward_coefficients(
+    betas: TensorType["T"], ddpm: DDPM, title: str, filename: str, β_start: float = 1e-6, β_end: float = 0.015
+):
     reset_plot_style(xtick_major_pad=4, ytick_major_pad=4, border_width=1.5, label_pad=4, grid_linewidth=0.4)
     num_plots = 4
     num_timesteps = ddpm.num_timesteps

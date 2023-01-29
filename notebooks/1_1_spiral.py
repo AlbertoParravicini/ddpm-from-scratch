@@ -102,7 +102,12 @@ if __name__ == "__main__":
     plt.title("A spiral")
     save_plot(PLOT_DIR, "1_1_spiral.png", create_date_dir=False)
 
-    # %% Generate beta schedule
+    # %% Generate beta schedule.
+    # Note to the reader: the coefficient of β_end is the same as in
+    # "Denoising diffusion probabilistic models from first principles".
+    # However, this coefficient does not ensure that the q(x_T) has unitary variance and zero mean.
+    # I don't know why this coefficient was chosen, but I suspect that the inference ability of a model trained
+    # in this way is suboptimal.
     num_timesteps = 40
     βs = linear_beta_schedule(num_timesteps, 8e-6, 9e-5)
 

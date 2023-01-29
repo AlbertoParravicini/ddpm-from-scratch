@@ -21,6 +21,7 @@ segretini_matplottini = { git = "https://github.com/AlbertoParravicini/segretini
 torchvision = "^0.14.1"
 torchtyping = "^0.1.4"
 tqdm = "^4.64.1"
+einops = "^0.6.0"
 
 [tool.setuptools]
 packages = ["ddpm_from_scratch"]

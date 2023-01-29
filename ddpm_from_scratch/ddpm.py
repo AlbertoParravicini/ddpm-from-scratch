@@ -132,7 +132,7 @@ class DDPM:
         if clip_predicted_x_0:
             x_hat_0 = torch.clip(x_hat_0, -1, 1)
         # Obtain the posterior mean and variance, and obtain a sample of q(x_t-1 | x_t, x_0)
-        posterior_mean, posterior_variance = self._posterior_mean_variance(t, x_start=x_hat_0, x_t=x_t)
+        posterior_mean, posterior_variance = self._posterior_mean_variance(t, x_0=x_hat_0, x_t=x_t)
         x_t_minus_one = posterior_mean
         # Add noise to the sample, instead of taking a deterministic step
         if add_noise:

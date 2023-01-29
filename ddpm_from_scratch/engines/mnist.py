@@ -46,9 +46,9 @@ def load_mnist(data_root: Path, batch_size: int = 4) -> tuple[MNIST, DataLoader]
 
     :param data_root: folder where the dataset is stored, or where it is downloaded if missing.
     :param batch_size: batch size used in the DataLoader.
-    :return: the MNIST dataset, and its DataLoader.
+    :return: the MNIST training dataset, with its DataLoader, and the MNIST test set, with its dataloader.
     """
-    mnist = MNIST(
+    mnist_train = MNIST(
         root=data_root,
         download=True,
         train=True,
@@ -59,8 +59,20 @@ def load_mnist(data_root: Path, batch_size: int = 4) -> tuple[MNIST, DataLoader]
             ]
         ),
     )
-    dataloader = DataLoader(mnist, batch_size=batch_size, shuffle=True, num_workers=1)
-    return mnist, dataloader
+    dataloader_train = DataLoader(mnist_train, batch_size=batch_size, shuffle=True, num_workers=1)
+    mnist_test = MNIST(
+        root=data_root,
+        download=True,
+        train=False,
+        transform=T.Compose(
+            [
+                T.ToTensor(),
+                T.Normalize(0.5, 0.5),
+            ]
+        ),
+    )
+    dataloader_test = DataLoader(mnist_test, batch_size=batch_size, shuffle=True, num_workers=1)
+    return mnist_train, dataloader_train, mnist_test, dataloader_test
 
 
 def get_one_element_per_digit(mnist) -> TensorType[10, 1, 28, 28]:
@@ -119,7 +131,7 @@ def inference(
     sampler: DDPM,
     callback: Optional[Callable[[int, TensorType["float"]], None]] = None,
     call_callback_every_n_steps: int = 50,
-) -> None:
+) -> TensorType["B", "C", "H", "W", "float"]:
     """
     Loop for diffusion inference on a batch of MNIST digits.
 
@@ -130,13 +142,14 @@ def inference(
     :param call_callback_every_n_steps: interval, in steps, that elapses between calling the callback.
         The callback is not called if `call_callback_every_n_steps <= 0`.
         It is always called at the last step of inference.
+    :return: the denoised MNIST digits, as a tensor normalized in `[-1, 1]`.
     """
     steps = np.linspace(1, 0, sampler.num_timesteps)
     for t in tqdm(steps, desc="inference", total=len(steps)):
         # Get timestep, in the range [0, num_timesteps)
         timestep = min(int(t * sampler.num_timesteps), sampler.num_timesteps - 1)
         # Inference, predict the next step given the current one
-        with torch.no_grad():
+        with torch.inference_mode():
             x, _ = sampler.backward_sample(timestep, x, add_noise=t != 0)
         # Call the optional callback, every few steps
         if (
@@ -147,3 +160,4 @@ def inference(
         ):
             assert callback is not None
             callback(timestep, x)
+    return x

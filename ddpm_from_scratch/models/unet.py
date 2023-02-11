@@ -62,7 +62,7 @@ class ResBlock(nn.Module):
         )
 
     def forward(
-        self, t: TensorType["B", "int"], x: TensorType["B", "C1", "H2", "W2", "float"]
+        self, t: TensorType["B", "int"], x: TensorType["B", "C1", "H1", "W1", "float"]
     ) -> TensorType["B", "C2", "H2", "W2", "float"]:
         h = self.convblock_1(x)  # First ConvBlock, from C1 to C2.
         t = expand_to_dims(self.timestep_embedding(t), x)  # Replicate time embedding to H1 and W1.
@@ -76,6 +76,7 @@ class ResBlock(nn.Module):
 class MultiheadAttention(nn.Module):
     def __init__(self, channels: int) -> None:
         super().__init__()
+        self.norm = nn.GroupNorm(num_groups=8, num_channels=channels)
         self.attention = nn.MultiheadAttention(channels, num_heads=4, batch_first=True)
 
     def forward(
@@ -83,6 +84,7 @@ class MultiheadAttention(nn.Module):
     ) -> TensorType["B", "C", "H", "W", "float"]:
         # Group together the spatial dimensions, and perform self attention by aggregating channels
         h, w = x.shape[-2:]
+        x = self.norm(x)
         x = rearrange(x, "b c h w -> b (h w) c")
         # Compute self-attention, using the same tensor for key, query, value.
         # Discard the attention matrix, using `need_weights=False` and taking the first output.
@@ -123,7 +125,7 @@ class UNet(nn.Module):
             ResBlock(in_channels=self._channels[i], out_channels=self._channels[i + 1], down=True)
             for i in range(len(self._channels) - 1)
         )
-        # Middle layer. Add attention on the timestep.
+        # Middle layer. Self-attention.
         self.middle_layers = nn.ModuleList(
             [
                 ResBlock(in_channels=self._channels[-1], out_channels=self._channels[-1]),

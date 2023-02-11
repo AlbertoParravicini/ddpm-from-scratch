@@ -103,6 +103,30 @@ def scaled_linear_beta_schedule(
     return linear_beta_schedule(num_timesteps, β_start**0.5, β_end**0.5, num_train_timesteps) ** 2
 
 
+def cosine_beta_schedule(
+    num_timesteps: int = 1000, s: float = 0.008
+) -> TensorType["T"]:
+    """
+    Create a variance schedule (`beta schedule`) with a cosine progression.
+    Nichol et al. (https://arxiv.org/pdf/2102.09672.pdf) found that this schedule distributes
+    noise more evenly over the time range, instead of having a sharp reduction as in a liner schedule.
+
+    :param num_timesteps: number of values in the generated schedule.
+    :param s: smoothing applied to the cosine schedule. The schedule follows a perfect cosine for `s = 0`,
+        while for large `s` it will decrease faster to 0.
+    :return: the generated beta schedule
+    """
+    t = torch.arange(0, num_timesteps + 1)
+    # α_hat are defined so that α is 1 at timestep 0, 0 at timestep `num_timestep`,
+    # and the progression follows a cosine curve, with a smoothing controlled by `s`.
+    # Each x_t is a Gaussian with mean α_hat_t.
+    α_hat = torch.cos(((t / num_timesteps + s) / (1 + s)) * (torch.pi / 2)) ** 2
+    α_hat = α_hat / α_hat[0]  # Ensure that α_hat[0] is 1
+    β = 1 - α_hat[1:] / α_hat[:-1]  # α = α_hat[1:] / α_hat[:-1], β = 1 - α
+    β = torch.clamp(β, 0, 0.999)
+    return β
+
+
 def expand_to_dims(x: torch.Tensor, y: torch.Tensor):
     """
     Expand the shape of `x` to match the number of dimensions of `y`, by adding

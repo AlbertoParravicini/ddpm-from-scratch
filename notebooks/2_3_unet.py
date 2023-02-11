@@ -15,7 +15,7 @@ from ddpm_from_scratch.engines.mnist import (
     train,
 )
 from ddpm_from_scratch.models.unet import UNet
-from ddpm_from_scratch.utils import linear_beta_schedule
+from ddpm_from_scratch.utils import cosine_beta_schedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -30,16 +30,18 @@ if __name__ == "__main__":
     PLOT_DIR.mkdir(exist_ok=True, parents=True)
     DATA_DIR.mkdir(exist_ok=True, parents=True)
 
-    # Define the denoising model.
+    # Define the denoising model. This time, use a full UNet with timestep conditioning,
+    # residual blocks, and self-attention.
     model = UNet()
     print(model)
 
     # Define the optimizer.
-    optimizer = torch.optim.Adam(model.parameters())
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
 
     # Create the diffusion process.
+    # This time, we use a cosine schedule.
     num_timesteps = 1000
-    betas = linear_beta_schedule(num_timesteps, 8e-6, 9e-5)
+    betas = cosine_beta_schedule(num_timesteps)
     ddpm = DDPM(betas, model)
 
     # Load the MNIST dataset.
@@ -59,7 +61,7 @@ if __name__ == "__main__":
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...)
     x = get_one_element_per_digit(mnist_test)
     # Add noise to the digits.
-    x_noisy, _ = ddpm.forward_sample(num_timesteps - 1, x)
+    x_noisy, _ = ddpm.forward_sample((num_timesteps - 1) // 4, x)
     # Do inference, and store results into the GIF, using the callback.
     x_denoised = inference(
         x=x_noisy,
@@ -68,5 +70,6 @@ if __name__ == "__main__":
         call_callback_every_n_steps=50,
     )
     # Compute error, as L2 norm.
-    l2 = (x_denoised - x_noisy).pow(2).sum().pow(0.5)
+    l2 = torch.nn.functional.mse_loss(x_denoised, x, reduction="mean").item()
     print(f"L2 norm after denoising: {l2:.6f}")
+

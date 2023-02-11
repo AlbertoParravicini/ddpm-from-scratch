@@ -115,7 +115,7 @@ def train(dataloader: DataLoader, sampler: DDPM, optimizer: Optimizer, epochs: i
             # Predict the noise
             _, predicted_noise = sampler.predict_x_0_and_noise(t, x_noisy)
             # Compute loss, as L2 of real and predicted noise
-            loss = torch.mean((noise - predicted_noise) ** 2)
+            loss = torch.nn.functional.mse_loss(predicted_noise, noise, reduction="mean")
             # Backward step
             loss.backward()
             optimizer.step()

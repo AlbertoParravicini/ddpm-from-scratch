@@ -16,10 +16,24 @@ poetry install
 
 Notebooks inside `notebooks` follow the original blogs. You can run them to obtain plots similar to the ones in the blogs, and look at the commented code to understand what's going on under the hood.
 
+### Denoising the spiral
+
+In the first part, we learn how to create a DDPM using a toy problem: denoising a spiral. 
+
 * `1_1_spiral.py`. Create a Gaussian distribution, and create a sprial. Also define a *variance schedule*, a.k.a. the `β schedule`, and progressively add noise to the spiral.
 * `1_2_gaussian_diffusion.py`. Here we create a Gaussian Diffusion process, with forward and backward processes that we can use for sampling. We add again noise to the spiral, but this time using the forward process. We also define the backward process to iteratively remove the noise we added, but since we don't have a noise prediction model yet, we can't really denoise the spiral! 
 * `1_3_train_denoiser.py`. Here we rewrite the Gaussian Diffusion process using Pytorch, and define a simple model that we plug into the Gaussian Diffusion process. We train it, and show that we can finally denoise the spiral.
 * `1_4_plot_coefficients.py`. What do the coefficients of a DDPM look like? How are the boundary values of `β schedule` chosen? What's the intuition behind the DDPM posterior process? Here we visualize the coefficients of DDPM, and answer these questions.
+
+### Tackling MNIST
+
+In the second part, we build a realistic UNet to denoise the MNIST dataset, and learn how to evaluate the quality of a diffusion model.
+
+* `2_1_mnist.py`. Let's create a very simple UNet without time-step conditioning, and see if we can use it to denoise MNIST digits. Surprisingly, it works well even without any information on the time-step. There's still room to improve though.
+* `2_2_mnist.py`. Here we modify the UNet to have conditioning on the time-step. It turns out that results are not much different than before, hinting that the model might be too simple for the task.
+* `2_3_unet.py`. In this notebook, we train a much more complex UNet, not too different from the ones you might see in real papers. It has ResNet blocks, self-attention blocks, and time-step conditioning. Also, we use a cosine `β schedule` to improve the quality of the diffusion process. Results are significantly better than before!
+* `2_4_lenet.py`. Although we can evaluate the quality of denosing with a simple L2 norm, measuring the quality of digits generated from scratch is more difficult. We'll use FID, a distance that measures the distribution shift between features of real and generated digits. To compute this metric, we need a classifier, or some other kind of model trained on the images that we want to generate. So, we train a simple LeNet5, and we will later use it to compute the FID.
+* `2_5_fid.py`. In this notebook, we finally generate some digits, and measure their quality when compared to the real digits, using FID. 
 
 ## References
 

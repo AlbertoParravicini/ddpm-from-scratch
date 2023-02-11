@@ -40,7 +40,7 @@ class MnistInferenceGifCallback:
         self.writer.close()
 
 
-def load_mnist(data_root: Path, batch_size: int = 4) -> tuple[MNIST, DataLoader]:
+def load_mnist(data_root: Path, batch_size: int = 4) -> tuple[MNIST, DataLoader, MNIST, DataLoader]:
     """
     Load the MNIST dataset, and wrap it into a DataLoader
 

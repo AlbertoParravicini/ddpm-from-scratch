@@ -7,14 +7,11 @@ import torch
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 
 from ddpm_from_scratch.ddpm import DDPM
-from ddpm_from_scratch.engines.mnist import (
-    MnistInferenceGifCallback,
-    get_one_element_per_digit,
-    inference,
-    load_mnist,
-    train,
-)
-from ddpm_from_scratch.models.unet_simple_with_timestep import UNetSimpleWithTimestep
+from ddpm_from_scratch.engines.mnist import (MnistInferenceGifCallback,
+                                             get_one_element_per_digit,
+                                             inference, load_mnist, train)
+from ddpm_from_scratch.models.unet_simple_with_timestep import \
+    UNetSimpleWithTimestep
 from ddpm_from_scratch.utils import linear_beta_schedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"

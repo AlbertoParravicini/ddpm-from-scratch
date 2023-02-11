@@ -9,8 +9,10 @@ from torchtyping import TensorType
 from tqdm import tqdm
 
 from ddpm_from_scratch.ddpm import DDPM
-from ddpm_from_scratch.models.spiral_denoising_model import SpiralDenoisingModel
-from ddpm_from_scratch.utils import T, linear_beta_schedule, scaled_linear_beta_schedule
+from ddpm_from_scratch.models.spiral_denoising_model import \
+    SpiralDenoisingModel
+from ddpm_from_scratch.utils import (T, linear_beta_schedule,
+                                     scaled_linear_beta_schedule)
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"

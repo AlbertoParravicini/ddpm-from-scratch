@@ -109,7 +109,7 @@ if __name__ == "__main__":
     # The author don't say why: I imagine it's because we are doing a denoising task, not a generation task.
     # It is not reasonable to fully denoise an image if we start from pure Gaussian noise.
     # So, we ensure that the maximum amount of noise being added is still something we can recover from.
-    # In later notebooks we switch to a generative task, and use coefficients 
+    # In later notebooks we switch to a generative task, and use coefficients
     # that guarantee unitary variance and zero mean.
     num_timesteps = 40
     βs = linear_beta_schedule(num_timesteps, 8e-6, 9e-5)

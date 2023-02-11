@@ -103,9 +103,7 @@ def scaled_linear_beta_schedule(
     return linear_beta_schedule(num_timesteps, β_start**0.5, β_end**0.5, num_train_timesteps) ** 2
 
 
-def cosine_beta_schedule(
-    num_timesteps: int = 1000, s: float = 0.008
-) -> TensorType["T"]:
+def cosine_beta_schedule(num_timesteps: int = 1000, s: float = 0.008) -> TensorType["T"]:
     """
     Create a variance schedule (`beta schedule`) with a cosine progression.
     Nichol et al. (https://arxiv.org/pdf/2102.09672.pdf) found that this schedule distributes

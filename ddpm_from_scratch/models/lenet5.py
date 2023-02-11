@@ -1,5 +1,6 @@
 import torch.nn as nn
-from einops import rearrange
+from einops import rearrange  # type: ignore
+
 
 class LeNet5(nn.Module):
     def __init__(self, num_classes: int):

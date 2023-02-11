@@ -5,14 +5,12 @@ import numpy as np
 import pandas as pd
 import torch
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
-from tqdm import tqdm
-from ddpm_from_scratch.engines.mnist import (
-    get_one_element_per_digit,
-    inference,
-    load_mnist,
-)
-from ddpm_from_scratch.models.lenet5 import LeNet5
 from torch.nn.functional import binary_cross_entropy_with_logits
+from tqdm import tqdm
+
+from ddpm_from_scratch.engines.mnist import (get_one_element_per_digit,
+                                             inference, load_mnist)
+from ddpm_from_scratch.models.lenet5 import LeNet5
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -80,8 +78,8 @@ if __name__ == "__main__":
                 e = (y != y_pred.argmax(axis=1)).float().mean().item()
                 val_losses += [val_loss]
                 val_errors += [e]
-        val_losses_per_epoch += [np.mean(val_losses)]
-        val_errors_per_epoch += [np.mean(val_errors)]
+        val_losses_per_epoch += [float(np.mean(val_losses))]
+        val_errors_per_epoch += [float(np.mean(val_errors))]
 
     #%% Plot the training loss function
     plt.figure(figsize=(6, 6))

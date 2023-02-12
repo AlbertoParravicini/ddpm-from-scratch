@@ -48,7 +48,7 @@ if __name__ == "__main__":
             # Zero gradients at every step
             optimizer.zero_grad()
             # Predict the digits
-            y_pred = model(x)
+            _, y_pred = model(x)
             # Compute loss, as BCE
             loss = binary_cross_entropy_with_logits(y_pred, y_one_hot, reduction="mean")
             # Also compute number of errors
@@ -72,7 +72,7 @@ if __name__ == "__main__":
         for i, (x, y) in enumerate(val_progress_bar_step):
             y_one_hot = torch.nn.functional.one_hot(y, 10).float()
             with torch.inference_mode():
-                y_pred = model(x)
+                _, y_pred = model(x)
                 # Compute BCE and errors
                 val_loss = binary_cross_entropy_with_logits(y_pred, y_one_hot, reduction="mean").item()
                 e = (y != y_pred.argmax(axis=1)).float().mean().item()

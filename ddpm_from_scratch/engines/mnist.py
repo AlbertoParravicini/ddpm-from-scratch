@@ -131,6 +131,8 @@ def inference(
     sampler: DDPM,
     callback: Optional[Callable[[int, TensorType["float"]], None]] = None,
     call_callback_every_n_steps: int = 50,
+    initial_step_percentage: float = 1,
+    verbose: bool = True,
 ) -> TensorType["B", "C", "H", "W", "float"]:
     """
     Loop for diffusion inference on a batch of MNIST digits.
@@ -142,20 +144,25 @@ def inference(
     :param call_callback_every_n_steps: interval, in steps, that elapses between calling the callback.
         The callback is not called if `call_callback_every_n_steps <= 0`.
         It is always called at the last step of inference.
+    :param initial_step_percentage: strength of the noise applied to the forward sample, in [0, 1].
+        By default, assume we are starting from pure noise, and we are generating data from pure noise.
+        If less than 1, we perform denoising starting from a noisy image, doing only a fraction of the timesteps.
+    :param verbose: if True, print a progress bar during inference
     :return: the denoised MNIST digits, as a tensor normalized in `[-1, 1]`.
     """
-    steps = np.linspace(1, 0, sampler.num_timesteps)
-    for t in tqdm(steps, desc="inference", total=len(steps)):
+    # Compute the timestep we start from, as percentage of the total
+    num_timesteps = max(1, int(sampler.num_timesteps * initial_step_percentage))
+    steps = np.linspace(initial_step_percentage, 0, num_timesteps)
+    for t in tqdm(steps, desc="inference", total=len(steps), disable=not verbose):
         # Get timestep, in the range [0, num_timesteps)
-        timestep = min(int(t * sampler.num_timesteps), sampler.num_timesteps - 1)
+        timestep = min(int(t * sampler.num_timesteps), num_timesteps - 1)
         # Inference, predict the next step given the current one
         with torch.inference_mode():
             x, _ = sampler.backward_sample(timestep, x, add_noise=t != 0)
         # Call the optional callback, every few steps
         if (
             call_callback_every_n_steps > 0
-            and timestep % call_callback_every_n_steps == 0
-            or timestep == sampler.num_timesteps - 1
+            and (timestep % call_callback_every_n_steps == 0 or timestep == num_timesteps - 1)
             and callback is not None
         ):
             assert callback is not None

@@ -137,3 +137,18 @@ def expand_to_dims(x: torch.Tensor, y: torch.Tensor):
     :return: the expanded input tensor
     """
     return x[(...,) + (None,) * (len(y.shape) - len(x.shape))]
+
+
+def gaussian_frechet_distance(
+    μ_1: TensorType["N"], Σ_1: TensorType["N", "N"], μ_2: TensorType["N"], Σ_2: TensorType["N", "N"]
+) -> TensorType[1]:
+    """
+    Frechet Inception Distance (FID) between two multivariate Gaussian distributions.
+    It measures how different the two distributions are: intuitively, it looks for the difference of means,
+    and for how different the "rotations" of the covariance matrices are.
+    It is computed as `|μ_1 - μ_2|**2 + trace(Σ_1 + Σ_2 - 2*sqrt(Σ_1 * Σ_2))`.
+
+    :return: the FID of the two distributions.
+    """
+    diff = μ_1 - μ_2
+    return torch.sum(diff * diff) + torch.trace(Σ_1 + Σ_2 - 2 * torch.sqrt(Σ_1 * Σ_2))

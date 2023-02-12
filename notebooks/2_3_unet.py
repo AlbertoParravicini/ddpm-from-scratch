@@ -11,7 +11,7 @@ from ddpm_from_scratch.engines.mnist import (MnistInferenceGifCallback,
                                              get_one_element_per_digit,
                                              inference, load_mnist, train)
 from ddpm_from_scratch.models.unet import UNet
-from ddpm_from_scratch.utils import linear_beta_schedule
+from ddpm_from_scratch.utils import cosine_beta_schedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -29,22 +29,26 @@ if __name__ == "__main__":
     # Define the denoising model. This time, use a full UNet with timestep conditioning,
     # residual blocks, and self-attention.
     model = UNet()
-    print(model)
+    # print(model)
 
     # Define the optimizer.
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+    optimizer = torch.optim.Adam(model.parameters())
 
     # Create the diffusion process.
     # This time, we use a cosine schedule.
     num_timesteps = 1000
-    betas = linear_beta_schedule(num_timesteps, 8e-6, 9e-5)
+    betas = cosine_beta_schedule(num_timesteps)
+
     ddpm = DDPM(betas, model)
 
     # Load the MNIST dataset.
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=8)
 
     #%% Train the model, in the same way as before.
-    losses = train(dataloader=dataloader_train, sampler=ddpm, optimizer=optimizer, epochs=1)
+    losses = train(dataloader=dataloader_train, sampler=ddpm, optimizer=optimizer, epochs=3)
+
+    # Save the model
+    torch.save(model.state_dict(), DATA_DIR / "unet.pt")
 
     #%% Plot the loss function
     plt.figure(figsize=(6, 6))
@@ -56,15 +60,21 @@ if __name__ == "__main__":
 
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...)
     x = get_one_element_per_digit(mnist_test)
-    # Add noise to the digits.
-    x_noisy, _ = ddpm.forward_sample(num_timesteps - 1, x)
-    # Do inference, and store results into the GIF, using the callback.
-    x_denoised = inference(
-        x=x_noisy,
-        sampler=ddpm,
-        callback=MnistInferenceGifCallback(filename=PLOT_DIR / "2_3_inference.gif"),
-        call_callback_every_n_steps=50,
-    )
-    # Compute error, as L2 norm.
-    l2 = torch.nn.functional.mse_loss(x_denoised, x, reduction="mean").item()
-    print(f"L2 norm after denoising: {l2:.6f}")
+    # Add noise to the digits, with some specified strengths.
+    # The model can denoise very well digits with a small amount of noise,
+    # but it will have problems denoising digits with a lot of noise.
+    # The extreme case, where we start with Gaussian noise, is pure image generation.
+    noise_strengths = [0.25, 0.5, 0.75, 1]
+    for noise_strength in noise_strengths:
+        x_noisy, _ = ddpm.forward_sample(int((num_timesteps - 1) * noise_strength), x)
+        # Do inference, and store results into the GIF, using the callback.
+        x_denoised = inference(
+            x=x_noisy,
+            sampler=ddpm,
+            callback=MnistInferenceGifCallback(filename=PLOT_DIR / f"2_3_inference_{noise_strength:.2f}.gif"),
+            call_callback_every_n_steps=50,
+            initial_step_percentage=noise_strength,
+        )
+        # Compute error, as L2 norm.
+        l2 = torch.nn.functional.mse_loss(x_denoised, x, reduction="mean").item()
+        print(f"L2 norm after denoising, noise strength {noise_strength:.2f}: {l2:.6f}")

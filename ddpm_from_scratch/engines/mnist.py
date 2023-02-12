@@ -102,7 +102,8 @@ def train(dataloader: DataLoader, sampler: DDPM, optimizer: Optimizer, epochs: i
     losses: list[float] = []
     progress_bar_epoch = tqdm(range(epochs), desc="training")
     for e in progress_bar_epoch:
-        progress_bar_step = tqdm(dataloader, desc=f"epoch {e}")
+        progress_bar_step = tqdm(dataloader, desc=f"epoch {e + 1}/{epochs}")
+        losses_epoch: list[float] = []
         # Iterate over the dataset, but ignore the class for now
         for i, (x, _) in enumerate(progress_bar_step):
             x = x.to(device)
@@ -120,10 +121,11 @@ def train(dataloader: DataLoader, sampler: DDPM, optimizer: Optimizer, epochs: i
             # Backward step
             loss.backward()
             optimizer.step()
-            losses += [loss.item()]
+            losses_epoch += [loss.item()]
             if i % 10 == 0:
                 progress_bar_step.set_postfix({"loss": loss.item()})
-        progress_bar_epoch.set_postfix({"loss": loss.item()})
+        losses += losses_epoch
+        progress_bar_epoch.set_postfix({"loss": np.mean(losses_epoch)})
     return losses
 
 

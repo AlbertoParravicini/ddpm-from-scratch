@@ -2,13 +2,11 @@ from ddpm_from_scratch.models.lenet5 import LeNet5
 from pathlib import Path
 import torch
 from torchtyping import TensorType
+
 from ddpm_from_scratch.ddpm import DDPM
 from ddpm_from_scratch.engines.mnist import (
-    MnistInferenceGifCallback,
-    get_one_element_per_digit,
     inference,
     load_mnist,
-    train,
 )
 from ddpm_from_scratch.models.unet import UNet
 from ddpm_from_scratch.utils import B, N, gaussian_frechet_distance, cosine_beta_schedule

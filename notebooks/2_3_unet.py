@@ -6,9 +6,6 @@ import pandas as pd
 import torch
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 
-import sys
-sys.path.insert(0, "..")
-sys.path.insert(0, ".")
 from ddpm_from_scratch.ddpm import DDPM
 from ddpm_from_scratch.engines.mnist import (MnistInferenceGifCallback,
                                              get_one_element_per_digit,
@@ -34,10 +31,10 @@ if __name__ == "__main__":
     # Define the denoising model. This time, use a full UNet with timestep conditioning,
     # residual blocks, and self-attention.
     model = UNet().to(device)
-    # print(model)
+    print(model)
 
-    # Define the optimizer.
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    # Define the optimizer. We use RAdam instead of Adam, it works a bit better.
+    optimizer = torch.optim.RAdam(model.parameters(), lr=1e-3)
 
     # Create the diffusion process.
     # This time, we use a cosine schedule.
@@ -49,7 +46,7 @@ if __name__ == "__main__":
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=128)
 
     #%% Train the model, in the same way as before.
-    losses = train(dataloader=dataloader_train, sampler=ddpm, optimizer=optimizer, epochs=3, device=device)
+    losses = train(dataloader=dataloader_train, sampler=ddpm, optimizer=optimizer, epochs=800, device=device)
 
     # Save the model
     torch.save(model.state_dict(), DATA_DIR / "unet.pt")

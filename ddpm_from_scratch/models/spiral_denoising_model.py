@@ -55,7 +55,7 @@ class SpiralDenoisingModel(nn.Module):
         self.dense_4 = nn.Linear(32, 2)
 
     def forward(
-        self, t: TensorType["B", "int"], x: TensorType["B", "N", "2", "float"]
+        self, x: TensorType["B", "N", "2", "float"], t: TensorType["B", "int"]
     ) -> TensorType["B", "N", "2", "float"]:
         # If x is given without batch size, we remove it at the end
         x_shape_len = len(x.shape)

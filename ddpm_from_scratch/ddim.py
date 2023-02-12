@@ -86,7 +86,7 @@ class DDIM:
         if len(_t.shape) == 0:
             _t = _t.unsqueeze(0)
         # Predict noise with our model
-        noise = self.denoise_function(_t, x_t)
+        noise = self.denoise_function(x_t, _t)
         # Since `t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_start`.
         coeff_x_t = expand_to_dims(self.posterior_mean_x_0_x_t_coeff[_t], x_t)
         coeff_noise = expand_to_dims(self.posterior_mean_x_0_epsilon_coeff[_t], x_t)

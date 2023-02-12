@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 import torch
 from torchtyping import TensorType
@@ -10,7 +10,9 @@ class DDPM:
     def __init__(
         self,
         betas: TensorType["T", "float"],
-        denoise_function: Callable[[TensorType["B", "int"], TensorType["float"]], TensorType["float"]],
+        denoise_function: Callable[
+            [TensorType["B", "int"], TensorType["float"], Optional[TensorType["float"]]], TensorType["float"]
+        ],
     ) -> None:
         self.num_timesteps = len(betas)
 
@@ -21,7 +23,9 @@ class DDPM:
         self.betas = betas
         self.alphas = 1 - betas
         self.alpha_cumprods = torch.cumprod(self.alphas, dim=0)
-        self.alpha_cumprods_prevs = torch.concatenate([torch.tensor([1.0], device=self.alpha_cumprods.device), self.alpha_cumprods[:-1]])
+        self.alpha_cumprods_prevs = torch.concatenate(
+            [torch.tensor([1.0], device=self.alpha_cumprods.device), self.alpha_cumprods[:-1]]
+        )
         self.sqrt_alpha_cumprods = torch.sqrt(self.alpha_cumprods)
         self.sqrt_one_minus_alpha = torch.sqrt(1 - self.alpha_cumprods)
 
@@ -69,7 +73,7 @@ class DDPM:
         return sqrt_alpha_cumprod * x_0 + sqrt_one_minus_alpha * noise, noise
 
     def predict_x_0_and_noise(
-        self, t: Timestep, x_t: TensorType["float"]
+        self, t: Timestep, x_t: TensorType["float"], conditioning: Optional[TensorType["float"]] = None
     ) -> tuple[TensorType["float"], TensorType["float"]]:
         """
         Compute a sample of the backward process `q(x_0 | x_t)`, by denoising `x_t` using a model,
@@ -78,6 +82,7 @@ class DDPM:
 
         :param t: timestep(s) for the prediction, in the range `[0, self.num_timesteps)`
         :param x_start: tensor used for prediction, it represents `x_t`
+        :param c: additional conditioning applied to the model, e.g. to specify classes or text.
         :return: prediction of `x_0` and prediction of the noise added to `x_0` to obtain `x_start`
         """
         # Ensure the timestep is an integer tensor
@@ -85,8 +90,13 @@ class DDPM:
         # Ensure the timestep is not a scalar, it must have at least 1 dimension
         if len(_t.shape) == 0:
             _t = _t.unsqueeze(0)
-        # Predict noise with our model
-        noise = self.denoise_function(_t, x_t)
+        # Predict noise with our model. Pass conditioning only if not None.
+        # This allows supporting models that don't expect an additional conditioning
+        noise = (
+            self.denoise_function(_t, x_t, conditioning)
+            if conditioning is not None
+            else self.denoise_function(_t, x_t)
+        )
         # Since `t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_t`.
         coeff_x_t = expand_to_dims(self.sqrt_reciprocal_alpha_cumprods[_t], x_t)
         coeff_noise = expand_to_dims(self.sqrt_reciprocal_alpha_cumprods_minus_one[_t], x_t)
@@ -110,6 +120,7 @@ class DDPM:
         self,
         t: Timestep,
         x_t: TensorType["float"],
+        conditioning: Optional[TensorType["float"]] = None,
         clip_predicted_x_0: bool = True,
         add_noise: bool = True,
     ) -> tuple[TensorType["float"], TensorType["float"]]:
@@ -121,6 +132,7 @@ class DDPM:
 
         :param t: timestep of `x_t`
         :param x_start: value of `x_t`
+        :param conditioning: additional conditioning applied to the model, e.g. to specify classes or text.
         :param clip_predicted_x_0: if True, clip the predicted value of `x_0` in `[-1, 1]`
             This is meaningful only for denoising the spiral! We mights other values for images
         :param add_noise: if True, add noise, scaled by the posterior variance, to the predicted sample of `x_t-1`.
@@ -128,7 +140,7 @@ class DDPM:
         :return: the sample of `x_t-1`, and the predicted `x_0`
         """
         # Predict x_0 using the model
-        x_hat_0, _ = self.predict_x_0_and_noise(t, x_t)
+        x_hat_0, _ = self.predict_x_0_and_noise(t, x_t, conditioning)
         if clip_predicted_x_0:
             x_hat_0 = torch.clip(x_hat_0, -1, 1)
         # Obtain the posterior mean and variance, and obtain a sample of q(x_t-1 | x_t, x_0)

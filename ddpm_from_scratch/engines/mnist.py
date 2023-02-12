@@ -32,7 +32,7 @@ class MnistInferenceGifCallback:
 
     def __call__(self, timestep: int, x: TensorType["float"]) -> None:
         # Plot multiple digits as a grid, each in a separate column
-        grid = make_grid(x, padding=False, nrow=len(x))
+        grid = make_grid(x, padding=False, nrow=len(x), normalize=True)
         # Append the result to the GIF
         self.writer.append_data(np.array(T.ToPILImage()(grid)))
 
@@ -71,7 +71,7 @@ def load_mnist(data_root: Path, batch_size: int = 4) -> tuple[MNIST, DataLoader,
             ]
         ),
     )
-    dataloader_test = DataLoader(mnist_test, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
+    dataloader_test = DataLoader(mnist_test, batch_size=batch_size, shuffle=False, num_workers=1, drop_last=False)
     return mnist_train, dataloader_train, mnist_test, dataloader_test
 
 
@@ -87,7 +87,9 @@ def get_one_element_per_digit(mnist) -> TensorType[10, 1, 28, 28]:
     return torch.stack(digits)
 
 
-def train(dataloader: DataLoader, sampler: DDPM, optimizer: Optimizer, epochs: int = 1, device=torch.device("cpu")) -> list[float]:
+def train(
+    dataloader: DataLoader, sampler: DDPM, optimizer: Optimizer, epochs: int = 1, device=torch.device("cpu")
+) -> list[float]:
     """
     Train a diffusion model on MNIST. At each step, sample a digit,
     sample a random timestep, add noise to the digit with intensity proportional to the timestep,
@@ -129,9 +131,55 @@ def train(dataloader: DataLoader, sampler: DDPM, optimizer: Optimizer, epochs: i
     return losses
 
 
+def train_with_class_conditioning(
+    dataloader: DataLoader, sampler: DDPM, optimizer: Optimizer, epochs: int = 1, device=torch.device("cpu")
+) -> list[float]:
+    """
+    Train a diffusion model on MNIST, using class conditioning. At each step, sample a digit,
+    sample a random timestep, add noise to the digit with intensity proportional to the timestep,
+    and predict the noise that was added.
+
+    :param dataloader: DataLoader for MNIST.
+    :param sampler: instance of DDPM, containing the model to be trained.
+    :param optimizer: optimizer used in the training, e.g. Adam.
+    :param epochs: number of epochs for training, each corresponding to a full pass over the dataset.
+    :return: the list of losses, for each step of training.
+    """
+    losses: list[float] = []
+    progress_bar_epoch = tqdm(range(epochs), desc="training")
+    for e in progress_bar_epoch:
+        progress_bar_step = tqdm(dataloader, desc=f"epoch {e + 1}/{epochs}")
+        losses_epoch: list[float] = []
+        # Iterate over the dataset, but ignore the class for now
+        for i, (x, y) in enumerate(progress_bar_step):
+            x = x.to(device)
+            y = y.to(device)
+            # Zero gradients at every step
+            optimizer.zero_grad()
+            # Take a random timestep
+            t = torch.randint(low=0, high=sampler.num_timesteps, size=(dataloader.batch_size,), device=device)
+            # Add some noise to the data
+            with torch.no_grad():
+                x_noisy, noise = sampler.forward_sample(t, x)
+            # Predict the noise
+            _, predicted_noise = sampler.predict_x_0_and_noise(t, x_noisy, y)
+            # Compute loss, as L2 of real and predicted noise
+            loss = torch.nn.functional.mse_loss(predicted_noise, noise, reduction="mean")
+            # Backward step
+            loss.backward()
+            optimizer.step()
+            losses_epoch += [loss.item()]
+            if i % 10 == 0:
+                progress_bar_step.set_postfix({"loss": loss.item()})
+        losses += losses_epoch
+        progress_bar_epoch.set_postfix({"loss": np.mean(losses_epoch)})
+    return losses
+
+
 def inference(
     x: TensorType["B", "C", "H", "W", "float"],
     sampler: DDPM,
+    conditioning: Optional[TensorType["B", "int"]] = None,
     callback: Optional[Callable[[int, TensorType["float"]], None]] = None,
     call_callback_every_n_steps: int = 50,
     initial_step_percentage: float = 1,
@@ -142,6 +190,8 @@ def inference(
 
     :param x: batch of MNIST digits, as a tensor normalized in `[-1, 1]`.
     :param sampler: sampler used in inference, e.g. instance of `DDPM`.
+    :param conditioning: a batch of class conditioning values, e.g. the classes of MNIST digits.
+        If None, do not use conditioning. If not None, the model is expected to support class conditioning.
     :param callback: a callback the can be called every `call_callback_every_n_steps` steps,
         e.g. to plot the intermediate results.
     :param call_callback_every_n_steps: interval, in steps, that elapses between calling the callback.
@@ -161,7 +211,9 @@ def inference(
         timestep = min(int(t * sampler.num_timesteps), num_timesteps - 1)
         # Inference, predict the next step given the current one
         with torch.inference_mode():
-            x, _ = sampler.backward_sample(timestep, x, add_noise=t != 0)
+            x, _ = sampler.backward_sample(
+                timestep, x, conditioning=conditioning, add_noise=t != 0, clip_predicted_x_0=False
+            )
         # Call the optional callback, every few steps
         if (
             call_callback_every_n_steps > 0

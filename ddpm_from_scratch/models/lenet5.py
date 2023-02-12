@@ -2,7 +2,7 @@ import torch.nn as nn
 from einops import rearrange  # type: ignore
 from torchtyping import TensorType
 
-from ddpm_from_scratch.utils import B, C, H, W, N, M
+from ddpm_from_scratch.utils import B, C, H, M, N, W
 
 
 class LeNet5(nn.Module):

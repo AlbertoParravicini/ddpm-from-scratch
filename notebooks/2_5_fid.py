@@ -1,16 +1,14 @@
-from ddpm_from_scratch.models.lenet5 import LeNet5
 from pathlib import Path
+
 import torch
 from torchtyping import TensorType
+from tqdm import tqdm
 
 from ddpm_from_scratch.ddpm import DDPM
-from ddpm_from_scratch.engines.mnist import (
-    inference,
-    load_mnist,
-)
+from ddpm_from_scratch.engines.mnist import inference, load_mnist
+from ddpm_from_scratch.models.lenet5 import LeNet5
 from ddpm_from_scratch.models.unet import UNet
-from ddpm_from_scratch.utils import B, N, gaussian_frechet_distance, cosine_beta_schedule
-from tqdm import tqdm
+from ddpm_from_scratch.utils import B, N, cosine_beta_schedule, gaussian_frechet_distance
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"

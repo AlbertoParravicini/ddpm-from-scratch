@@ -12,9 +12,9 @@ from ddpm_from_scratch.engines.mnist import (
     get_one_element_per_digit,
     inference,
     load_mnist,
-    train,
+    train_with_class_conditioning,
 )
-from ddpm_from_scratch.models.unet import UNet
+from ddpm_from_scratch.models.unet_conditioned import UNetConditioned
 from ddpm_from_scratch.utils import cosine_beta_schedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     # Define the denoising model. This time, use a full UNet with timestep conditioning,
     # residual blocks, and self-attention.
-    model = UNet().to(device)
+    model = UNetConditioned(num_classes=10).to(device)
     print(model)
     print(f"trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
@@ -51,11 +51,13 @@ if __name__ == "__main__":
     # Load the MNIST dataset.
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=32)
 
-    #%% Train the model, in the same way as before.
-    losses = train(dataloader=dataloader_train, sampler=ddpm, optimizer=optimizer, epochs=30, device=device)
+    #%% Train the model, also using class conditioning
+    losses = train_with_class_conditioning(
+        dataloader=dataloader_train, sampler=ddpm, optimizer=optimizer, epochs=15, device=device
+    )
 
     # Save the model
-    torch.save(model.state_dict(), DATA_DIR / "unet.pt")
+    torch.save(model.state_dict(), DATA_DIR / "unet_conditioned.pt")
 
     #%% Plot the loss function
     plt.figure(figsize=(6, 6))
@@ -63,7 +65,7 @@ if __name__ == "__main__":
     plt.plot(np.arange(len(losses)), pd.Series(losses).rolling(100).mean(), lw=1, zorder=2)
     plt.xlim(0, len(losses))
     plt.ylim(0.0, 1.6)
-    save_plot(PLOT_DIR, "2_3_loss_function.png", create_date_dir=False)
+    save_plot(PLOT_DIR, "3_1_loss_function.png", create_date_dir=False)
 
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...)
     x = get_one_element_per_digit(mnist_test).to(device)
@@ -78,7 +80,8 @@ if __name__ == "__main__":
         x_denoised = inference(
             x=x_noisy,
             sampler=ddpm,
-            callback=MnistInferenceGifCallback(filename=PLOT_DIR / f"2_3_inference_{noise_strength:.2f}.gif"),
+            conditioning=torch.arange(0, 10, device=device),
+            callback=MnistInferenceGifCallback(filename=PLOT_DIR / f"3_1_inference_{noise_strength:.2f}.gif"),
             call_callback_every_n_steps=50,
             initial_step_percentage=noise_strength,
         )

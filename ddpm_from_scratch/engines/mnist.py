@@ -59,7 +59,7 @@ def load_mnist(data_root: Path, batch_size: int = 4) -> tuple[MNIST, DataLoader,
             ]
         ),
     )
-    dataloader_train = DataLoader(mnist_train, batch_size=batch_size, shuffle=True, num_workers=1)
+    dataloader_train = DataLoader(mnist_train, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=True)
     mnist_test = MNIST(
         root=data_root,
         download=True,
@@ -71,7 +71,7 @@ def load_mnist(data_root: Path, batch_size: int = 4) -> tuple[MNIST, DataLoader,
             ]
         ),
     )
-    dataloader_test = DataLoader(mnist_test, batch_size=batch_size, shuffle=True, num_workers=1)
+    dataloader_test = DataLoader(mnist_test, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
     return mnist_train, dataloader_train, mnist_test, dataloader_test
 
 
@@ -87,7 +87,7 @@ def get_one_element_per_digit(mnist) -> TensorType[10, 1, 28, 28]:
     return torch.stack(digits)
 
 
-def train(dataloader: DataLoader, sampler: DDPM, optimizer: Optimizer, epochs: int = 1) -> list[float]:
+def train(dataloader: DataLoader, sampler: DDPM, optimizer: Optimizer, epochs: int = 1, device=torch.device("cpu")) -> list[float]:
     """
     Train a diffusion model on MNIST. At each step, sample a digit,
     sample a random timestep, add noise to the digit with intensity proportional to the timestep,
@@ -105,10 +105,11 @@ def train(dataloader: DataLoader, sampler: DDPM, optimizer: Optimizer, epochs: i
         progress_bar_step = tqdm(dataloader, desc=f"epoch {e}")
         # Iterate over the dataset, but ignore the class for now
         for i, (x, _) in enumerate(progress_bar_step):
+            x = x.to(device)
             # Zero gradients at every step
             optimizer.zero_grad()
             # Take a random timestep
-            t = np.random.randint(sampler.num_timesteps, size=dataloader.batch_size)
+            t = torch.randint(low=0, high=sampler.num_timesteps, size=(dataloader.batch_size,), device=device)
             # Add some noise to the data
             with torch.no_grad():
                 x_noisy, noise = sampler.forward_sample(t, x)
@@ -120,7 +121,7 @@ def train(dataloader: DataLoader, sampler: DDPM, optimizer: Optimizer, epochs: i
             loss.backward()
             optimizer.step()
             losses += [loss.item()]
-            if i % 100 == 0:
+            if i % 10 == 0:
                 progress_bar_step.set_postfix({"loss": loss.item()})
         progress_bar_epoch.set_postfix({"loss": loss.item()})
     return losses

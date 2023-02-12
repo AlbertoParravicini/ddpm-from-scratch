@@ -21,7 +21,7 @@ class DDPM:
         self.betas = betas
         self.alphas = 1 - betas
         self.alpha_cumprods = torch.cumprod(self.alphas, dim=0)
-        self.alpha_cumprods_prevs = torch.concatenate([torch.tensor([1.0]), self.alpha_cumprods[:-1]])
+        self.alpha_cumprods_prevs = torch.concatenate([torch.tensor([1.0], device=self.alpha_cumprods.device), self.alpha_cumprods[:-1]])
         self.sqrt_alpha_cumprods = torch.sqrt(self.alpha_cumprods)
         self.sqrt_one_minus_alpha = torch.sqrt(1 - self.alpha_cumprods)
 
@@ -62,7 +62,7 @@ class DDPM:
         :return: the sampled value of `q(x_i | x_0)`, and the added noise
         """
         if noise is None:
-            noise = torch.randn(*x_0.shape)
+            noise = torch.randn(*x_0.shape, device=x_0.device)
         # Since `t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_0`.
         sqrt_alpha_cumprod = expand_to_dims(self.sqrt_alpha_cumprods[t], x_0)
         sqrt_one_minus_alpha = expand_to_dims(self.sqrt_one_minus_alpha[t], x_0)
@@ -136,6 +136,6 @@ class DDPM:
         x_t_minus_one = posterior_mean
         # Add noise to the sample, instead of taking a deterministic step
         if add_noise:
-            noise = torch.randn(*x_t.shape)
+            noise = torch.randn(*x_t.shape, device=x_t.device)
             x_t_minus_one += torch.sqrt(posterior_variance) * noise
         return x_t_minus_one, x_hat_0

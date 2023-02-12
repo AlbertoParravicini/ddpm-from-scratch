@@ -6,6 +6,9 @@ import pandas as pd
 import torch
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 
+import sys
+sys.path.insert(0, "..")
+sys.path.insert(0, ".")
 from ddpm_from_scratch.ddpm import DDPM
 from ddpm_from_scratch.engines.mnist import (MnistInferenceGifCallback,
                                              get_one_element_per_digit,
@@ -15,6 +18,8 @@ from ddpm_from_scratch.utils import cosine_beta_schedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
+
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
 #%%
@@ -28,24 +33,23 @@ if __name__ == "__main__":
 
     # Define the denoising model. This time, use a full UNet with timestep conditioning,
     # residual blocks, and self-attention.
-    model = UNet()
+    model = UNet().to(device)
     # print(model)
 
     # Define the optimizer.
-    optimizer = torch.optim.Adam(model.parameters())
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     # Create the diffusion process.
     # This time, we use a cosine schedule.
     num_timesteps = 1000
-    betas = cosine_beta_schedule(num_timesteps)
-
+    betas = cosine_beta_schedule(num_timesteps).to(device)
     ddpm = DDPM(betas, model)
 
     # Load the MNIST dataset.
-    mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=8)
+    mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=128)
 
     #%% Train the model, in the same way as before.
-    losses = train(dataloader=dataloader_train, sampler=ddpm, optimizer=optimizer, epochs=3)
+    losses = train(dataloader=dataloader_train, sampler=ddpm, optimizer=optimizer, epochs=3, device=device)
 
     # Save the model
     torch.save(model.state_dict(), DATA_DIR / "unet.pt")
@@ -57,9 +61,9 @@ if __name__ == "__main__":
     plt.xlim(0, len(losses))
     plt.ylim(0.0, 1.6)
     save_plot(PLOT_DIR, "2_3_loss_function.png", create_date_dir=False)
-
+   
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...)
-    x = get_one_element_per_digit(mnist_test)
+    x = get_one_element_per_digit(mnist_test).to(device)
     # Add noise to the digits, with some specified strengths.
     # The model can denoise very well digits with a small amount of noise,
     # but it will have problems denoising digits with a lot of noise.

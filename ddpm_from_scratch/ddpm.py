@@ -121,6 +121,7 @@ class DDPM:
         t: Timestep,
         x_t: TensorType["float"],
         conditioning: Optional[TensorType["float"]] = None,
+        classifier_free_scale: float = 1,
         clip_predicted_x_0: bool = True,
         add_noise: bool = True,
     ) -> tuple[TensorType["float"], TensorType["float"]]:
@@ -133,6 +134,9 @@ class DDPM:
         :param t: timestep of `x_t`
         :param x_start: value of `x_t`
         :param conditioning: additional conditioning applied to the model, e.g. to specify classes or text.
+        :param classifier_free_scale: if != 1, apply classifier-free guidance.
+            This means that each noise prediction is computed as ϵ(x_t) + classifier_free_scale * (ϵ(x_t | y) - ϵ(x_t)).
+            The value is ignored if `conditioning` is None.
         :param clip_predicted_x_0: if True, clip the predicted value of `x_0` in `[-1, 1]`
             This is meaningful only for denoising the spiral! We mights other values for images
         :param add_noise: if True, add noise, scaled by the posterior variance, to the predicted sample of `x_t-1`.
@@ -141,6 +145,10 @@ class DDPM:
         """
         # Predict x_0 using the model
         x_hat_0, _ = self.predict_x_0_and_noise(t, x_t, conditioning)
+        # Apply classifier-free guidance, if conditioning is present
+        if conditioning is not None and classifier_free_scale != 1:
+            x_hat_0_cf, _ = self.predict_x_0_and_noise(t, x_t)
+            x_hat_0 = x_hat_0_cf + classifier_free_scale * (x_hat_0 - x_hat_0_cf)
         if clip_predicted_x_0:
             x_hat_0 = torch.clip(x_hat_0, -1, 1)
         # Obtain the posterior mean and variance, and obtain a sample of q(x_t-1 | x_t, x_0)

@@ -208,7 +208,11 @@ class UNetConditioned(nn.Module):
         # Timestep embedding.
         timestep_emb = self.timestep_embedding(t)
         # Class embedding.
-        class_emb = self.class_embedding(c) if c is not None else self.class_embedding(self.num_classes)
+        class_emb = (
+            self.class_embedding(c)
+            if c is not None
+            else self.class_embedding(torch.tensor(self.num_classes, device=x.device))
+        )
         # Combine embeddings.
         emb = timestep_emb + class_emb
         # Store the output of each layer.

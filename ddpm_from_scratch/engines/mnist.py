@@ -132,7 +132,12 @@ def train(
 
 
 def train_with_class_conditioning(
-    dataloader: DataLoader, sampler: DDPM, optimizer: Optimizer, epochs: int = 1, device=torch.device("cpu")
+    dataloader: DataLoader,
+    sampler: DDPM,
+    optimizer: Optimizer,
+    epochs: int = 1,
+    device=torch.device("cpu"),
+    classifier_free_probability: float = 0.1,
 ) -> list[float]:
     """
     Train a diffusion model on MNIST, using class conditioning. At each step, sample a digit,
@@ -143,6 +148,9 @@ def train_with_class_conditioning(
     :param sampler: instance of DDPM, containing the model to be trained.
     :param optimizer: optimizer used in the training, e.g. Adam.
     :param epochs: number of epochs for training, each corresponding to a full pass over the dataset.
+    :param device: device where the training is performed.
+    :param classifier_free_probability: probability, in `[0, 1]` of ignoring the classes of the current samples,
+        and doing a class-free prediction instead.
     :return: the list of losses, for each step of training.
     """
     losses: list[float] = []
@@ -154,6 +162,8 @@ def train_with_class_conditioning(
         for i, (x, y) in enumerate(progress_bar_step):
             x = x.to(device)
             y = y.to(device)
+            # Swap some classes with the "empty class", marked using 10 (since MNIST classes go from 0 to 9)
+            y[torch.rand(len(y)) <= classifier_free_probability] = 10
             # Zero gradients at every step
             optimizer.zero_grad()
             # Take a random timestep
@@ -183,6 +193,7 @@ def inference(
     callback: Optional[Callable[[int, TensorType["float"]], None]] = None,
     call_callback_every_n_steps: int = 50,
     initial_step_percentage: float = 1,
+    classifier_free_scale: float = 1,
     verbose: bool = True,
 ) -> TensorType["B", "C", "H", "W", "float"]:
     """
@@ -200,6 +211,9 @@ def inference(
     :param initial_step_percentage: strength of the noise applied to the forward sample, in [0, 1].
         By default, assume we are starting from pure noise, and we are generating data from pure noise.
         If less than 1, we perform denoising starting from a noisy image, doing only a fraction of the timesteps.
+    :param classifier_free_scale: if != 1, apply classifier-free guidance.
+        This means that each noise prediction is computed as ϵ(x_t) + classifier_free_scale * (ϵ(x_t | y) - ϵ(x_t)).
+        The value is ignored if `conditioning` is None.
     :param verbose: if True, print a progress bar during inference
     :return: the denoised MNIST digits, as a tensor normalized in `[-1, 1]`.
     """
@@ -212,7 +226,12 @@ def inference(
         # Inference, predict the next step given the current one
         with torch.inference_mode():
             x, _ = sampler.backward_sample(
-                timestep, x, conditioning=conditioning, add_noise=t != 0, clip_predicted_x_0=False
+                timestep,
+                x,
+                conditioning=conditioning,
+                classifier_free_scale=classifier_free_scale,
+                add_noise=t != 0,
+                clip_predicted_x_0=True,
             )
         # Call the optional callback, every few steps
         if (

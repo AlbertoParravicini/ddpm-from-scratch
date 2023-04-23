@@ -7,7 +7,9 @@ Python & Pytorch implementation of [Denoising diffusion probabilistic models fro
 ```shell
 cd ddpm-from-scratch
 # Install poetry, skip if already available
-curl -sSL https://install.python-poetry.org | python3 -  
+curl -sSL https://install.python-poetry.org | python3 -
+# Create a conda environment and activate it
+conda create -n ddpm_from_scratch python=3.9 -y; conda activate ddpm_from_scratch
 # Install this project as a package, and install its dependencies
 poetry install
 ```

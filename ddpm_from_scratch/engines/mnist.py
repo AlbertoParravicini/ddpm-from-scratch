@@ -11,6 +11,7 @@ import numpy as np
 import torch
 import torchvision.transforms as T
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 from torchtyping import TensorType
 from torchvision.datasets.mnist import MNIST
@@ -135,10 +136,14 @@ def train_with_class_conditioning(
     dataloader: DataLoader,
     sampler: DDPM,
     optimizer: Optimizer,
+    scheduler: Optional[_LRScheduler] = None,
     epochs: int = 1,
     device=torch.device("cpu"),
     classifier_free_probability: float = 0.1,
-) -> list[float]:
+    validation_dataloader: Optional[DataLoader] = None,
+    validation_every_n_epochs: int = 1,
+    seed: Optional[int] = None,
+) -> tuple[list[float], list[float]]:
     """
     Train a diffusion model on MNIST, using class conditioning. At each step, sample a digit,
     sample a random timestep, add noise to the digit with intensity proportional to the timestep,
@@ -147,18 +152,30 @@ def train_with_class_conditioning(
     :param dataloader: DataLoader for MNIST.
     :param sampler: instance of DDPM, containing the model to be trained.
     :param optimizer: optimizer used in the training, e.g. Adam.
+    :param scheduler: scheduler used to update the learning rate. The scheduler step is done after each epoch.
     :param epochs: number of epochs for training, each corresponding to a full pass over the dataset.
     :param device: device where the training is performed.
     :param classifier_free_probability: probability, in `[0, 1]` of ignoring the classes of the current samples,
         and doing a class-free prediction instead.
+    :param validation_dataloader: DataLoader for the validation set.
+        If not None, the model is evaluated on this dataset
+    :param validation_every_n_epochs: perform a validation step on the
+        validation set every `validation_every_n_epochs` epochs.
+    :param seed: seed for the random number generators used in training and validation.
     :return: the list of losses, for each step of training.
+        If validation_dataloader is not None, also returns the list of validation losses. 
+        Otherwise return an empty list instead of the validation losses.
     """
     losses: list[float] = []
+    validation_losses: list[float] = []
     progress_bar_epoch = tqdm(range(epochs), desc="training")
+    generator_training = torch.Generator(device=device)
+    if seed is not None:
+        generator_training.manual_seed(seed)
     for e in progress_bar_epoch:
         progress_bar_step = tqdm(dataloader, desc=f"epoch {e + 1}/{epochs}")
         losses_epoch: list[float] = []
-        # Iterate over the dataset, but ignore the class for now
+        # Iterate over the dataset, this is an epoch of training
         for i, (x, y) in enumerate(progress_bar_step):
             x = x.to(device)
             y = y.to(device)
@@ -167,10 +184,16 @@ def train_with_class_conditioning(
             # Zero gradients at every step
             optimizer.zero_grad()
             # Take a random timestep
-            t = torch.randint(low=0, high=sampler.num_timesteps, size=(dataloader.batch_size,), device=device)
+            t = torch.randint(
+                low=0,
+                high=sampler.num_timesteps,
+                size=(x.shape[0],),
+                device=device,
+                generator=generator_training,
+            )
             # Add some noise to the data
             with torch.no_grad():
-                x_noisy, noise = sampler.forward_sample(t, x)
+                x_noisy, noise = sampler.forward_sample(t, x, generator=generator_training)
             # Predict the noise
             _, predicted_noise = sampler.predict_x_0_and_noise(t, x_noisy, y)
             # Compute loss, as L2 of real and predicted noise
@@ -182,8 +205,52 @@ def train_with_class_conditioning(
             if i % 10 == 0:
                 progress_bar_step.set_postfix({"loss": loss.item()})
         losses += losses_epoch
-        progress_bar_epoch.set_postfix({"loss": np.mean(losses_epoch)})
-    return losses
+        progress_bar_postfix: dict[str, float] = {}  # Used to update the progress bar
+        if scheduler is not None:
+            scheduler.step()
+            progress_bar_postfix["lr"] = scheduler.get_last_lr()[0]
+        progress_bar_postfix["loss"] = np.mean(losses_epoch)
+
+        # Validation loop, every validation_every_n_epochs epochs
+        if validation_dataloader is not None and e % validation_every_n_epochs == 0:
+            progress_bar_validation_step = tqdm(validation_dataloader, desc="validation", leave=False)
+            # Create a new generator for validation. This is always the same for each validation epoch,
+            # so we are sure to validate on exactly the same timesteps and random noise
+            generator_validation = torch.Generator(device=device)
+            if seed is not None:
+                generator_validation.manual_seed(seed)
+            validation_losses_epoch: list[float] = []
+            with torch.no_grad():
+                sampler.denoise_function.eval()
+                for i, (x, y) in enumerate(progress_bar_validation_step):
+                    # Identical to the training loop
+                    x = x.to(device)
+                    y = y.to(device)
+                    t = torch.randint(
+                        low=0,
+                        high=sampler.num_timesteps,
+                        size=(x.shape[0],),
+                        device=device,
+                        generator=generator_validation,
+                    )
+                    with torch.no_grad():
+                        x_noisy, noise = sampler.forward_sample(t, x, generator=generator_validation)
+                    _, predicted_noise = sampler.predict_x_0_and_noise(t, x_noisy, y)
+                    loss = torch.nn.functional.mse_loss(predicted_noise, noise, reduction="mean")
+                    validation_losses_epoch += [loss.item()]
+                    if i % 10 == 0:
+                        progress_bar_validation_step.set_postfix({"val_loss": loss.item()})
+                sampler.denoise_function.train()
+
+            # Track the mean loss during the validation step, instead of single steps,
+            # to obtain a smoother estimate of the validation loss
+            validation_loss_epoch = np.mean(validation_losses_epoch)
+            validation_losses += [validation_loss_epoch]
+            if validation_dataloader is not None:  # Track the validation loss in the main progress bar
+                progress_bar_postfix["val_loss"] = validation_loss_epoch
+        # Update the main progress bar
+        progress_bar_epoch.set_postfix(progress_bar_postfix)
+    return losses, validation_losses
 
 
 def inference(
@@ -217,6 +284,8 @@ def inference(
     :param verbose: if True, print a progress bar during inference
     :return: the denoised MNIST digits, as a tensor normalized in `[-1, 1]`.
     """
+    # We must be in eval mode
+    sampler.denoise_function.eval()
     # Compute the timestep we start from, as percentage of the total
     num_timesteps = max(1, int(sampler.num_timesteps * initial_step_percentage))
     steps = np.linspace(initial_step_percentage, 0, num_timesteps)

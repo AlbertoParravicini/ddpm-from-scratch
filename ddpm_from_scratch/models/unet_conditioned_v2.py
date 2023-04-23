@@ -31,6 +31,7 @@ class ResBlock(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
+        embedding_dim: int,
         up: bool = False,
         down: bool = False,
     ) -> None:
@@ -51,7 +52,7 @@ class ResBlock(nn.Module):
         )
         # Project the input time/class embedding into the number of channels expected by this block.
         self.embedding_projection = EmbeddingProjection(
-            in_channels=16 * 8, out_channels=out_channels, hidden_channels=16
+            in_channels=embedding_dim, out_channels=out_channels, hidden_channels=embedding_dim // 4
         )
         # Specify if this ResBlock will leave the spatial resolution unchanged,
         # or if we downscale/upscale the resolution.
@@ -123,9 +124,12 @@ class MultiheadAttention(nn.Module):
 
 
 class UpDownBlock(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, up: bool = False, down: bool = False):
+    def __init__(self, in_channels: int, out_channels: int, embedding_dim: int, up: bool = False, down: bool = False):
         super().__init__()
-        self.resnet = ResBlock(in_channels=in_channels, out_channels=out_channels, down=down, up=up)
+        self.resnet = ResBlock(
+            in_channels=in_channels, embedding_dim=embedding_dim, out_channels=out_channels, down=down, up=up
+        )
+        self.attention = MultiheadAttention(channels=out_channels)
 
     def forward(
         self,
@@ -133,6 +137,7 @@ class UpDownBlock(nn.Module):
         e: TensorType["B", "N", "float"],
     ):
         x = self.resnet(x, e)
+        x = self.attention(x, e) + x
         return x
 
 
@@ -158,11 +163,12 @@ class UNetConditioned(nn.Module):
             The number of channels in layer `i` is given by `hidden_channels * channel_multipliers[i]`.
         """
         super().__init__()
+        embedding_dim = hidden_channels * 8
         self._channels = [hidden_channels * c for c in channel_multipliers]
         # Timestep and class conditioning embeddings.
         self.num_classes = num_classes
-        self.timestep_embedding = nn.Embedding(num_embeddings=1024, embedding_dim=hidden_channels * 8)
-        self.class_embedding = nn.Embedding(num_embeddings=num_classes + 1, embedding_dim=hidden_channels * 8)
+        self.timestep_embedding = nn.Embedding(num_embeddings=1024, embedding_dim=embedding_dim)
+        self.class_embedding = nn.Embedding(num_embeddings=num_classes + 1, embedding_dim=embedding_dim)
         # Initial layer, to project the number of dimensions to the number of hidden channels.
         self.initial_conv = nn.Conv2d(
             in_channels=in_channels, out_channels=hidden_channels * channel_multipliers[0], kernel_size=3, padding=1
@@ -171,16 +177,21 @@ class UNetConditioned(nn.Module):
         # and increase the channel count by the specified factor.
         self.downsample_layers = nn.ModuleList(
             [
-                UpDownBlock(in_channels=self._channels[i], out_channels=self._channels[i + 1], down=True)
+                UpDownBlock(
+                    in_channels=self._channels[i],
+                    out_channels=self._channels[i + 1],
+                    embedding_dim=embedding_dim,
+                    down=True,
+                )
                 for i in range(len(self._channels) - 1)
             ]
         )
         # Middle layer. Self-attention.
         self.middle_layers = nn.ModuleList(
             [
-                ResBlock(in_channels=self._channels[-1], out_channels=self._channels[-1]),
+                ResBlock(in_channels=self._channels[-1], embedding_dim=embedding_dim, out_channels=self._channels[-1]),
                 MultiheadAttention(self._channels[-1]),
-                ResBlock(in_channels=self._channels[-1], out_channels=self._channels[-1]),
+                ResBlock(in_channels=self._channels[-1], embedding_dim=embedding_dim, out_channels=self._channels[-1]),
             ]
         )
         # Upsample layers. At each layer, we double the resolution
@@ -190,7 +201,12 @@ class UNetConditioned(nn.Module):
         # and the output of the downsample layer at the same index.
         self.upsample_layers = nn.ModuleList(
             [
-                UpDownBlock(in_channels=self._channels[i + 1] * 2, out_channels=self._channels[i], up=True)
+                UpDownBlock(
+                    in_channels=self._channels[i + 1] * 2,
+                    out_channels=self._channels[i],
+                    embedding_dim=embedding_dim,
+                    up=True,
+                )
                 for i in range(len(self._channels) - 1)[::-1]
             ]
         )

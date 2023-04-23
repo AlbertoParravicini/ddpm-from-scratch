@@ -52,7 +52,11 @@ class DDPM:
         self.denoise_function = denoise_function
 
     def forward_sample(
-        self, t: Timestep, x_0: TensorType["float"], noise: Optional[TensorType["float"]] = None
+        self,
+        t: Timestep,
+        x_0: TensorType["float"],
+        noise: Optional[TensorType["float"]] = None,
+        generator: Optional[torch.Generator] = None,
     ) -> tuple[TensorType["float"], TensorType["float"]]:
         """
         Compute `q(x_i | x_0)`, as a sample of a Gaussian process with equation
@@ -63,10 +67,11 @@ class DDPM:
         :param t: current timestep, as integer. It must be `[0, self.num_timesteps]`
         :param x_start: value of `x_0`, the value on which the forward process q is conditioned
         :param noise: noise added to the forward process. If None, sample from a standard Gaussian
+        :param generator: random number generator used to sample the noise
         :return: the sampled value of `q(x_i | x_0)`, and the added noise
         """
         if noise is None:
-            noise = torch.randn(*x_0.shape, device=x_0.device)
+            noise = torch.randn(*x_0.shape, device=x_0.device, generator=generator)
         # Since `t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_0`.
         sqrt_alpha_cumprod = expand_to_dims(self.sqrt_alpha_cumprods[t], x_0)
         sqrt_one_minus_alpha = expand_to_dims(self.sqrt_one_minus_alpha[t], x_0)
@@ -124,6 +129,7 @@ class DDPM:
         classifier_free_scale: float = 1,
         clip_predicted_x_0: bool = True,
         add_noise: bool = True,
+        generator: Optional[torch.Generator] = None,
     ) -> tuple[TensorType["float"], TensorType["float"]]:
         """
         Obtain a sample of the backward process `q(x_t-1 | x_t, x_0)`,
@@ -141,6 +147,7 @@ class DDPM:
             This is meaningful only for denoising the spiral! We mights other values for images
         :param add_noise: if True, add noise, scaled by the posterior variance, to the predicted sample of `x_t-1`.
             If False, the backward sample is deterministic. It should be False for `t = 0`, True otherwise (in DDPM)
+        :param generator: random number generator used to sample the noise, if `add_noise` is True.
         :return: the sample of `x_t-1`, and the predicted `x_0`
         """
         # Predict x_0 using the model
@@ -156,6 +163,6 @@ class DDPM:
         x_t_minus_one = posterior_mean
         # Add noise to the sample, instead of taking a deterministic step
         if add_noise:
-            noise = torch.randn(*x_t.shape, device=x_t.device)
+            noise = torch.randn(*x_t.shape, device=x_t.device, generator=generator)
             x_t_minus_one += torch.sqrt(posterior_variance) * noise
         return x_t_minus_one, x_hat_0

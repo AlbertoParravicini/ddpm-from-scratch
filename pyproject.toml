@@ -16,9 +16,9 @@ black = "^22.8"
 isort = "^5"
 spyder-kernels = ">2.3.0, < 2.4.0"
 imageio = "^2.23"
-torch = { version = ">= 1.13" }
+torch = ">=2"
 segretini_matplottini = { git = "https://github.com/AlbertoParravicini/segretini-matplottini" }
-torchvision = "^0.14.1"
+torchvision = ">=0.15"
 torchtyping = "^0.1.4"
 tqdm = "^4.64.1"
 einops = "^0.6.0"

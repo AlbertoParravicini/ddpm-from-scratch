@@ -40,6 +40,8 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 # * scaled_linear_beta_schedule instead of cosine_beta_schedule -> loss goes down to 0.04
 #   * L2 at strength 1: 0.629 -> Why is it higher?
 # * Add 24 as hidden dimension, go wider. 1.1M params, let's not get bigger than this
+#   * At 0.001, loss spikes up, at 0.0005, it goes slightly below 0.04. Not great. We have to go deeper instead
+#   * L2 at strength 1: 0.55
 ###############################################################################
 
 
@@ -60,7 +62,7 @@ if __name__ == "__main__":
     print(f"trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
     # Define the optimizer.
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.5e-3)
     # Create a LR scheduler that reduces by 10x the LR after 10 epochs
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=64, gamma=0.1)
 

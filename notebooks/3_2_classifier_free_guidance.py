@@ -5,14 +5,16 @@ import torch
 from segretini_matplottini.utils.plot_utils import reset_plot_style
 
 from ddpm_from_scratch.ddpm import DDPM
+
+from ddpm_from_scratch.ddim import DDIM
 from ddpm_from_scratch.engines.mnist import (
     MnistInferenceGifCallback,
     get_one_element_per_digit,
     inference,
     load_mnist,
 )
-from ddpm_from_scratch.models.unet_conditioned import UNetConditioned
-from ddpm_from_scratch.utils import cosine_beta_schedule
+from ddpm_from_scratch.models.unet_conditioned_v2 import UNetConditioned
+from ddpm_from_scratch.utils import cosine_beta_schedule, scaled_linear_beta_schedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -30,12 +32,12 @@ if __name__ == "__main__":
     DATA_DIR.mkdir(exist_ok=True, parents=True)
 
     # Define the denoising model.
-    model = UNetConditioned(num_classes=10).to(device)
+    model = UNetConditioned(num_classes=10, hidden_channels=24).to(device)
 
     # Create the diffusion process.
-    num_timesteps = 100
-    betas = cosine_beta_schedule(num_timesteps).to(device)
-    ddpm = DDPM(betas, model)
+    num_timesteps = 50
+    betas = scaled_linear_beta_schedule(num_timesteps).to(device)
+    ddpm = DDIM(betas, model)
 
     # Load the MNIST dataset.
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=8)
@@ -46,7 +48,7 @@ if __name__ == "__main__":
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...).
     x = get_one_element_per_digit(mnist_test).to(device)
     # This time, we use classifier-free guidance, balancing conditioned and unconditioned sampling.
-    noise_strengths = [0.25, 0.5, 0.75, 1]
+    noise_strengths = [1]
     for noise_strength in noise_strengths:
         x_noisy, _ = ddpm.forward_sample(int((num_timesteps - 1) * noise_strength), x)
         # Do inference, and store results into the GIF, using the callback.
@@ -57,7 +59,7 @@ if __name__ == "__main__":
             callback=MnistInferenceGifCallback(filename=PLOT_DIR / f"3_2_inference_{noise_strength:.2f}.gif"),
             call_callback_every_n_steps=5,
             initial_step_percentage=noise_strength,
-            classifier_free_scale=7.5,
+            classifier_free_scale=15,
         )
         # Compute error, as L2 norm.
         l2 = torch.nn.functional.mse_loss(x_denoised, x, reduction="mean").item()

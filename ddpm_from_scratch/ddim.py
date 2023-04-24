@@ -33,7 +33,7 @@ class DDIM:
         #########################################################
 
         # α_t-1
-        self.alphas_prev = torch.concatenate([torch.tensor([1.0]), self.alphas[:-1]])
+        self.alphas_prev = torch.concatenate([torch.tensor([1.0], device=self.alphas.device), self.alphas[:-1]])
         # sqrt(α_t-1 / α_t), used as x_t coefficient to predict x_0
         self.posterior_mean_x_0_x_t_coeff = torch.sqrt(self.alphas_prev / self.alphas)
         # sqrt(α_t-1 / α_t) * sqrt(1 - α_t), used as ε_t coefficient to predict x_0
@@ -62,7 +62,7 @@ class DDIM:
         :return: the sampled value of `q(x_i | x_0)`, and the added noise
         """
         if noise is None:
-            noise = torch.randn(*x_0.shape)
+            noise = torch.randn(*x_0.shape, device=x_0.device)
         # Since `t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_0`.
         sqrt_alpha = expand_to_dims(self.sqrt_alphas[t], x_0)
         sqrt_one_minus_alpha = expand_to_dims(self.sqrt_one_minus_alpha[t], x_0)
@@ -97,6 +97,9 @@ class DDIM:
         self,
         t: Timestep,
         x_t: TensorType["float"],
+        conditioning: Optional[TensorType["float"]] = None,
+        classifier_free_scale: float = 1,
+        clip_predicted_x_0: bool = True,
         add_noise: bool = False,
     ) -> tuple[TensorType["float"], TensorType["float"]]:
         """
@@ -113,6 +116,8 @@ class DDIM:
         """
         # Predict x_0 using the model
         x_hat_0, pred_noise = self.predict_x_0_and_noise(t=t, x_t=x_t)
+        if clip_predicted_x_0:
+            x_hat_0 = torch.clip(x_hat_0, -1, 1)
         # Obtain the posterior mean, and obtain a sample of q(x_t-1 | x_t, x_0)
         noise_coeff = expand_to_dims(self.posterior_mean_x_t_coeff[t], x_t)
         x_t_minus_one = x_hat_0 + noise_coeff * pred_noise

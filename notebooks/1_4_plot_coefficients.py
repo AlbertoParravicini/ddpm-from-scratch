@@ -8,9 +8,9 @@ from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 from torchtyping import TensorType
 from tqdm import tqdm
 
-from ddpm_from_scratch.ddpm import DDPM
+from ddpm_from_scratch.samplers.ddpm import DDPM
 from ddpm_from_scratch.models.spiral_denoising_model import SpiralDenoisingModel
-from ddpm_from_scratch.utils import T, linear_beta_schedule, scaled_linear_beta_schedule
+from ddpm_from_scratch.utils import T, LinearBetaSchedule, ScaledLinearBetaSchedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -105,9 +105,9 @@ if __name__ == "__main__":
 
     # Plot the coefficients of a beta schedule, using the default DDPM values
     num_timesteps = 1000
-    betas = linear_beta_schedule(num_timesteps)
+    betas = LinearBetaSchedule()
     model = SpiralDenoisingModel()
-    ddpm = DDPM(betas, model)
+    ddpm = DDPM(betas, model, device="cpu", num_timesteps=num_timesteps)
 
     # Plot the beta schedule, alphas, and the coefficients of the forward process q(x_t | x_0),
     # which defines x_t ~ N(sqrt(cumprod_alpha_t) * x_0, (1 - cumprod_alpha_t) * I).
@@ -141,9 +141,9 @@ if __name__ == "__main__":
     #%% Do the same thing, but now we use just 100 timesteps.
     # The shape of the curves is the same as using 1000 steps!
     num_timesteps = 100
-    betas = linear_beta_schedule(num_timesteps)
+    betas = LinearBetaSchedule(num_timesteps)
     model = SpiralDenoisingModel()
-    ddpm = DDPM(betas, model)
+    ddpm = DDPM(betas, model, device="cpu", num_timesteps=num_timesteps)
 
     # Plot again the beta schedule, alphas, and the coefficients of the forward process q(x_t | x_0).
     plot_forward_coefficients(
@@ -171,9 +171,9 @@ if __name__ == "__main__":
 
     #%% LDM and Stable Diffusion use a different beta schedule that decreases noise in a smoother way.
     num_timesteps = 1000
-    betas = scaled_linear_beta_schedule(num_timesteps)
+    betas = ScaledLinearBetaSchedule()
     model = SpiralDenoisingModel()
-    ddpm = DDPM(betas, model)
+    ddpm = DDPM(betas, model, device="cpu", num_timesteps=num_timesteps)
 
     # Plot again the beta schedule, alphas, and the coefficients of the forward process q(x_t | x_0).
     plot_forward_coefficients(
@@ -204,9 +204,9 @@ if __name__ == "__main__":
     max_beta_range = np.geomspace(0.0001, 0.25, 50)
     with imageio.get_writer(PLOT_DIR / "1_4_scaled_linear_betas_range.gif", mode="I") as writer:  # Create a GIF!
         for i, b in tqdm(enumerate(max_beta_range)):
-            betas = scaled_linear_beta_schedule(num_timesteps, β_end=b)
+            betas = ScaledLinearBetaSchedule(num_train_timesteps=num_timesteps, β_end=b).betas
             model = SpiralDenoisingModel()
-            ddpm = DDPM(betas, model)
+            ddpm = DDPM(betas, model, device="cpu", num_timesteps=num_timesteps)
             plot_name = f"1_4_scaled_linear_betas_range_{i}.png"
             plot_forward_coefficients(
                 betas,
@@ -234,9 +234,9 @@ if __name__ == "__main__":
         PLOT_DIR / "1_4_posterior_coefficients_scaled_linear_betas_range.gif", mode="I"
     ) as writer:  # Create a GIF!
         for i, b in tqdm(enumerate(max_beta_range)):
-            betas = linear_beta_schedule(num_timesteps, β_end=b)
+            betas = LinearBetaSchedule(num_train_timesteps=num_timesteps, β_end=b).betas
             model = SpiralDenoisingModel()
-            ddpm = DDPM(betas, model)
+            ddpm = DDPM(betas, model, device="cpu", num_timesteps=num_timesteps)
             plot_name = f"1_4_posterior_coefficients_scaled_linear_betas_range_{i}.png"
             plot_posterior_coefficients(
                 betas,

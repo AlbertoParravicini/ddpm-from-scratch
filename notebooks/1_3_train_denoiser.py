@@ -11,9 +11,9 @@ from segretini_matplottini.utils.colors import PALETTE_1
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 from tqdm import tqdm
 
-from ddpm_from_scratch.ddpm import DDPM
+from ddpm_from_scratch.samplers.ddim import DDIM
 from ddpm_from_scratch.models.spiral_denoising_model import SinusoidalEncoding, SpiralDenoisingModel
-from ddpm_from_scratch.utils import COOL_GREEN, linear_beta_schedule, make_spiral
+from ddpm_from_scratch.utils import COOL_GREEN, LinearBetaSchedule, make_spiral
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 
@@ -37,17 +37,22 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model.parameters())
 
     # Create the diffusion process. It is the same as `notebooks/1_2_gaussian_diffusion.py`, but rewritten in Pytorch.
-    # Check out `ddpm_from_scratch/ddpm.py` for the Pytorch implementation.
+    # Check out `ddpm_from_scratch/samples/ddpm.py` for the Pytorch implementation.
+    # We also wrap the beta schedule into a class.
+    # We add a "device" parameter to support GPUs later on, but for now we stick to CPUs.
+    # Note that we keep the same coefficients of beta as before.
+    # They don't guarantee that we obtain Gaussian Noise at time T.
+    # We stick to them for consistency with "Denoising diffusion probabilistic models from first principles".
     num_timesteps = 1000
-    betas = linear_beta_schedule(num_timesteps, 8e-6, 9e-5)
-    ddpm = DDPM(betas, model)
+    betas = LinearBetaSchedule(num_train_timesteps=1000, β_start=8e-6, β_end=9e-5)
+    ddpm = DDIM(betas, model, device="cpu", num_timesteps=num_timesteps)
 
     # Create a spiral, and add noise using the new distribution.
     X = make_spiral(1000, normalize=True)
 
     #%% Train the model.
     num_training_steps = 20000
-    batch_size = 1
+    batch_size = 32
     losses = []
     # Replicate the spiral to obtain the desired batch size.
     X_train = X.repeat([batch_size, 1, 1])
@@ -57,19 +62,19 @@ if __name__ == "__main__":
         # Zero gradients at every step
         optimizer.zero_grad()
         # Take a random timestep
-        t = np.random.randint(num_timesteps, size=batch_size)
+        t = torch.randint(low=0, high=num_timesteps, size=(batch_size,))
         # Add some noise to the spiral (this is done without gradient!)
         with torch.no_grad():
             X_noisy, noise = ddpm.forward_sample(t, X_train)
         # Predict the noise
-        x0_pred, predicted_noise = ddpm.predict_x_0_and_noise(t, X_noisy)
+        predicted_noise = model(t, X_train)
         # Compute loss, as L2 of real and predicted noise
         loss = torch.mean((noise - predicted_noise) ** 2)
         # Backward step
         loss.backward()
         optimizer.step()
         losses += [loss.item()]
-        progress_bar.set_postfix({"loss": loss.item()})
+        progress_bar.set_postfix({"loss": loss.item()}, refresh=False)
 
     #%% Plot the loss function
     plt.figure(figsize=(6, 6))
@@ -81,8 +86,8 @@ if __name__ == "__main__":
     #%% Do inference, starting from a noisy spiral
     X = make_spiral(1000, normalize=True)  # Create the spiral
     # Create a DDPM that does inference in fewer steps, but still uses the trained model
-    inference_steps = 200
-    ddpm_inference = DDPM(linear_beta_schedule(inference_steps), model)
+    inference_steps = 50
+    ddpm_inference = DDPM(betas, model, device="cpu", num_timesteps=inference_steps)
     X_noisy, _ = ddpm_inference.forward_sample(inference_steps - 1, X)  # Add noise
     with imageio.get_writer(PLOT_DIR / "1_3_inference.gif", mode="I") as writer:  # Create a GIF!
         steps = np.linspace(1, 0, inference_steps)

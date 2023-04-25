@@ -18,7 +18,7 @@ from torchvision.datasets.mnist import MNIST
 from torchvision.utils import make_grid
 from tqdm import tqdm
 
-from ddpm_from_scratch.ddpm import DDPM
+from ddpm_from_scratch.samplers import Sampler
 from ddpm_from_scratch.utils import B, C, H, W
 
 
@@ -89,7 +89,7 @@ def get_one_element_per_digit(mnist) -> TensorType[10, 1, 28, 28]:
 
 
 def train(
-    dataloader: DataLoader, sampler: DDPM, optimizer: Optimizer, epochs: int = 1, device=torch.device("cpu")
+    dataloader: DataLoader, sampler: Sampler, optimizer: Optimizer, epochs: int = 1, device=torch.device("cpu")
 ) -> list[float]:
     """
     Train a diffusion model on MNIST. At each step, sample a digit,
@@ -97,7 +97,7 @@ def train(
     and predict the noise that was added.
 
     :param dataloader: DataLoader for MNIST.
-    :param sampler: instance of DDPM, containing the model to be trained.
+    :param sampler: instance of DDPM or another sampler, containing the model to be trained.
     :param optimizer: optimizer used in the training, e.g. Adam.
     :param epochs: number of epochs for training, each corresponding to a full pass over the dataset.
     :return: the list of losses, for each step of training.
@@ -134,7 +134,7 @@ def train(
 
 def train_with_class_conditioning(
     dataloader: DataLoader,
-    sampler: DDPM,
+    sampler: Sampler,
     optimizer: Optimizer,
     scheduler: Optional[_LRScheduler] = None,
     epochs: int = 1,
@@ -150,7 +150,7 @@ def train_with_class_conditioning(
     and predict the noise that was added.
 
     :param dataloader: DataLoader for MNIST.
-    :param sampler: instance of DDPM, containing the model to be trained.
+    :param sampler: instance of DDPM or another sampler, containing the model to be trained.
     :param optimizer: optimizer used in the training, e.g. Adam.
     :param scheduler: scheduler used to update the learning rate. The scheduler step is done after each epoch.
     :param epochs: number of epochs for training, each corresponding to a full pass over the dataset.
@@ -255,7 +255,7 @@ def train_with_class_conditioning(
 
 def inference(
     x: TensorType["B", "C", "H", "W", "float"],
-    sampler: DDPM,
+    sampler: Sampler,
     conditioning: Optional[TensorType["B", "int"]] = None,
     callback: Optional[Callable[[int, TensorType["float"]], None]] = None,
     call_callback_every_n_steps: int = 50,
@@ -285,7 +285,7 @@ def inference(
     :return: the denoised MNIST digits, as a tensor normalized in `[-1, 1]`.
     """
     # We must be in eval mode
-    sampler.denoise_function.eval()
+    sampler.model.eval()
     # Compute the timestep we start from, as percentage of the total
     num_timesteps = max(1, int(sampler.num_timesteps * initial_step_percentage))
     steps = np.linspace(initial_step_percentage, 0, num_timesteps)
@@ -300,7 +300,7 @@ def inference(
                 conditioning=conditioning,
                 classifier_free_scale=classifier_free_scale,
                 add_noise=t != 0,
-                clip_predicted_x_0=True,
+                clip_predicted_x_0=False,
             )
         # Call the optional callback, every few steps
         if (

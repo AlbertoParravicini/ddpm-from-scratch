@@ -191,7 +191,7 @@ if __name__ == "__main__":
     reset_plot_style(xtick_major_pad=4, ytick_major_pad=4, border_width=1.5, label_pad=4)
     PLOT_DIR.mkdir(exist_ok=True, parents=True)
 
-    # Create a spiral, and add noise using the new distribution
+    # Create a spiral, and add noise to it. Create a β-schedule identical to before
     x, y = make_spiral(1000, normalize=True)
     num_timesteps = 1000
     βs = linear_beta_schedule(num_timesteps, 8e-6, 9e-5)

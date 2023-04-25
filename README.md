@@ -17,6 +17,7 @@ poetry install
 ## Notebooks
 
 Notebooks inside `notebooks` follow the original blogs. You can run them to obtain plots similar to the ones in the blogs, and look at the commented code to understand what's going on under the hood.
+Notebooks are meant to be read starting from the `if __name__ == "__main__"` block. You'll find plenty of comments that will guide you towards the relevant parts of the code.
 
 ### Denoising the spiral
 

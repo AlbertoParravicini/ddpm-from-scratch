@@ -14,9 +14,9 @@ from torchvision.datasets.mnist import MNIST
 from torchvision.utils import make_grid
 from tqdm import tqdm
 
-from ddpm_from_scratch.ddpm import DDPM
+from ddpm_from_scratch.samplers.ddpm import DDPM
 from ddpm_from_scratch.models.unet_simple import UNetSimple
-from ddpm_from_scratch.utils import linear_beta_schedule
+from ddpm_from_scratch.utils import LinearBetaSchedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     # Create the diffusion process.
     num_timesteps = 1000
-    betas = linear_beta_schedule(num_timesteps, 8e-6, 9e-5)
+    betas = LinearBetaSchedule(num_timesteps, 8e-6, 9e-5)
     ddpm = DDPM(betas, model)
 
     # Load the MNIST dataset

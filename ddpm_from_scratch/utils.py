@@ -2,6 +2,8 @@ from typing import Sequence, TypeVar, Union
 
 import torch
 from torchtyping import TensorType
+from dataclasses import dataclass
+from abc import ABC, abstractmethod
 
 COOL_GREEN = "#57bb8a"
 
@@ -58,31 +60,54 @@ def make_spiral(
     return torch.stack([x, y]).T
 
 
-def linear_beta_schedule(
-    num_timesteps: int = 1000, β_start: float = 0.00085, β_end: float = 0.012, num_train_timesteps: int = 1000
-) -> TensorType["T"]:
+@dataclass
+class BetaSchedule(ABC):
+    """
+    Create a variance schedule (`beta schedule`) with values from a starting value
+    to an ending value. Default values are the ones commonly used in LDM/Stable Diffusion.
+    """
+
+    num_train_timesteps: int = 1000
+    """
+    Reference value for the number timesteps. In DDPM, a large value (like 1000).
+    The values of `beta` are multiplied by `num_train_timesteps` / `num_timesteps`.
+    Using `num_timesteps < num_train_timesteps` allows to have a schedule with "shape" identical
+    to using `num_timesteps == num_train_timesteps`, but defined over fewer timesteps.
+    """
+
+    @abstractmethod
+    def betas(self, num_timesteps: int = 1000) -> TensorType["T"]:
+        """
+        Generate a beta schedule with the specified number of steps.
+        """
+        pass
+
+
+@dataclass
+class LinearBetaSchedule(BetaSchedule):
     """
     Create a variance schedule (`beta schedule`) with linearly spaced values from a starting value
-    to an ending value. Default values are the ones commonly used in LDM/Stable Diffusion.
-
-    :param num_timesteps: number of values in the generated schedule.
-    :param β_start: starting value of the beta schedule, at timestep 0
-    :param β_end: ending value of the beta schedule, at timestep T
-    :param num_train_timesteps: reference value for the number timesteps. In DDPM, a large value (like 1000).
-        The values of `beta` are multiplied by `num_train_timesteps` / `num_timesteps`.
-        Using `num_timesteps < num_train_timesteps` allows to have a schedule with "shape" identical
-        to using `num_timesteps == num_train_timesteps`, but defined over fewer timesteps.
-    :return: the generated beta schedule
+    to an ending value.
     """
-    scale = num_train_timesteps / num_timesteps
-    β_start *= scale
-    β_end *= scale
-    return torch.linspace(β_start, β_end, num_timesteps)
+
+    β_start: float = 0.00085
+    """
+    Starting value of the beta schedule, at timestep 0
+    """
+    β_end: float = 0.012
+    """
+    Ending value of the beta schedule, at timestep T
+    """
+
+    def betas(self, num_timesteps: int = 1000) -> TensorType["T"]:
+        scale = self.num_train_timesteps / num_timesteps
+        β_start = self.β_start * scale
+        β_end = self.β_end * scale
+        return torch.linspace(β_start, β_end, num_timesteps)
 
 
-def scaled_linear_beta_schedule(
-    num_timesteps: int = 1000, β_start: float = 0.00085, β_end: float = 0.012, num_train_timesteps: int = 1000
-) -> TensorType["T"]:
+@dataclass
+class ScaledLinearBetaSchedule(BetaSchedule):
     """
     Create a variance schedule (`beta schedule`) with linearly spaced values from a starting value
     to an ending value. The schedule is scaled by using the square root of the provided β values,
@@ -90,39 +115,50 @@ def scaled_linear_beta_schedule(
     noise variance that becomes lower earlier in the generation process, instead
     of becoming small only in the latest steps.
     Default values are the ones commonly used in LDM/Stable Diffusion.
-
-    :param num_timesteps: number of values in the generated schedule.
-    :param β_start: starting value of the beta schedule, at timestep 0
-    :param β_end: ending value of the beta schedule, at timestep T
-    :param num_train_timesteps: reference value for the number timesteps. In DDPM, a large value (like 1000).
-        The values of `beta` are multiplied by `num_train_timesteps` / `num_timesteps`.
-        Using `num_timesteps < num_train_timesteps` allows to have a schedule with "shape" identical
-        to using `num_timesteps == num_train_timesteps`, but defined over fewer timesteps.
-    :return: the generated beta schedule
     """
-    return linear_beta_schedule(num_timesteps, β_start**0.5, β_end**0.5, num_train_timesteps) ** 2
+
+    β_start: float = 0.00085
+    """
+    Starting value of the beta schedule, at timestep 0
+    """
+    β_end: float = 0.012
+    """
+    Ending value of the beta schedule, at timestep T
+    """
+
+    def betas(self, num_timesteps: int = 1000) -> TensorType["T"]:
+        β_start = self.β_start**0.5
+        β_end = self.β_end**0.5
+        scale = (self.num_train_timesteps / num_timesteps) ** 0.5
+        β_start *= scale
+        β_end *= scale
+        return torch.linspace(β_start, β_end, num_timesteps) ** 2
 
 
-def cosine_beta_schedule(num_timesteps: int = 1000, s: float = 0.008) -> TensorType["T"]:
+@dataclass
+class CosineBetaSchedule(BetaSchedule):
     """
     Create a variance schedule (`beta schedule`) with a cosine progression.
     Nichol et al. (https://arxiv.org/pdf/2102.09672.pdf) found that this schedule distributes
     noise more evenly over the time range, instead of having a sharp reduction as in a liner schedule.
-
-    :param num_timesteps: number of values in the generated schedule.
-    :param s: smoothing applied to the cosine schedule. The schedule follows a perfect cosine for `s = 0`,
-        while for large `s` it will decrease faster to 0.
-    :return: the generated beta schedule
     """
-    t = torch.arange(0, num_timesteps + 1)
-    # α_hat are defined so that α is 1 at timestep 0, 0 at timestep `num_timestep`,
-    # and the progression follows a cosine curve, with a smoothing controlled by `s`.
-    # Each x_t is a Gaussian with mean α_hat_t.
-    α_hat = torch.cos(((t / num_timesteps + s) / (1 + s)) * (torch.pi / 2)) ** 2
-    α_hat = α_hat / α_hat[0]  # Ensure that α_hat[0] is 1
-    β = 1 - α_hat[1:] / α_hat[:-1]  # α = α_hat[1:] / α_hat[:-1], β = 1 - α
-    β = torch.clamp(β, 0, 0.999)
-    return β
+
+    s: float = 0.008
+    """
+    Smoothing applied to the cosine schedule. The schedule follows a perfect cosine for `s = 0`,
+    while for large `s` it will decrease faster to 0.
+    """
+
+    def betas(self, num_timesteps: int = 1000) -> TensorType["T"]:
+        t = torch.arange(0, num_timesteps + 1)
+        # α_hat are defined so that α is 1 at timestep 0, 0 at timestep `num_timestep`,
+        # and the progression follows a cosine curve, with a smoothing controlled by `s`.
+        # Each x_t is a Gaussian with mean α_hat_t.
+        α_hat = torch.cos(((t / num_timesteps + self.s) / (1 + self.s)) * (torch.pi / 2)) ** 2
+        α_hat = α_hat / α_hat[0]  # Ensure that α_hat[0] is 1
+        β = 1 - α_hat[1:] / α_hat[:-1]  # α = α_hat[1:] / α_hat[:-1], β = 1 - α
+        β = torch.clamp(β, 0, 0.999)
+        return β
 
 
 def expand_to_dims(x: torch.Tensor, y: torch.Tensor):

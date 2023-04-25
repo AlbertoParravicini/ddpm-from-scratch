@@ -4,9 +4,9 @@ import numpy as np
 import torch
 from segretini_matplottini.utils.plot_utils import reset_plot_style
 
-from ddpm_from_scratch.ddpm import DDPM
+from ddpm_from_scratch.samplers.ddpm import DDPM
 
-from ddpm_from_scratch.ddim import DDIM
+from ddpm_from_scratch.samplers.ddim import DDIM
 from ddpm_from_scratch.engines.mnist import (
     MnistInferenceGifCallback,
     get_one_element_per_digit,
@@ -14,7 +14,7 @@ from ddpm_from_scratch.engines.mnist import (
     load_mnist,
 )
 from ddpm_from_scratch.models.unet_conditioned_v2 import UNetConditioned
-from ddpm_from_scratch.utils import cosine_beta_schedule, scaled_linear_beta_schedule
+from ddpm_from_scratch.utils import CosineBetaSchedule, ScaledLinearBetaSchedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -31,13 +31,13 @@ if __name__ == "__main__":
     PLOT_DIR.mkdir(exist_ok=True, parents=True)
     DATA_DIR.mkdir(exist_ok=True, parents=True)
 
-    # Define the denoising model.
-    model = UNetConditioned(num_classes=10, hidden_channels=24).to(device)
-
     # Create the diffusion process.
     num_timesteps = 50
-    betas = scaled_linear_beta_schedule(num_timesteps).to(device)
-    ddpm = DDIM(betas, model)
+    betas = ScaledLinearBetaSchedule()
+    # Define the denoising model.
+    model = UNetConditioned(num_classes=10, hidden_channels=24)
+    # Create the sampler.
+    ddpm = DDIM(betas, model, device=device, num_timesteps=num_timesteps)
 
     # Load the MNIST dataset.
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=8)
@@ -59,7 +59,7 @@ if __name__ == "__main__":
             callback=MnistInferenceGifCallback(filename=PLOT_DIR / f"3_2_inference_{noise_strength:.2f}.gif"),
             call_callback_every_n_steps=5,
             initial_step_percentage=noise_strength,
-            classifier_free_scale=15,
+            classifier_free_scale=7,
         )
         # Compute error, as L2 norm.
         l2 = torch.nn.functional.mse_loss(x_denoised, x, reduction="mean").item()

@@ -221,7 +221,7 @@ def train_with_class_conditioning(
                 generator_validation.manual_seed(seed)
             validation_losses_epoch: list[float] = []
             with torch.no_grad():
-                sampler.denoise_function.eval()
+                sampler.model.eval()
                 for i, (x, y) in enumerate(progress_bar_validation_step):
                     # Identical to the training loop
                     x = x.to(device)
@@ -240,7 +240,7 @@ def train_with_class_conditioning(
                     validation_losses_epoch += [loss.item()]
                     if i % 10 == 0:
                         progress_bar_validation_step.set_postfix({"val_loss": loss.item()})
-                sampler.denoise_function.train()
+                sampler.model.train()
 
             # Track the mean loss during the validation step, instead of single steps,
             # to obtain a smoother estimate of the validation loss

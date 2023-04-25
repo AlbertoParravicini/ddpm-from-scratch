@@ -40,7 +40,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 # * scaled_linear_beta_schedule instead of cosine_beta_schedule -> loss goes down to 0.04
 #   * L2 at strength 1: 0.629 -> Why is it higher?
 # * Add 24 as hidden dimension, go wider. 1.1M params, let's not get bigger than this
-#   * At 0.001, loss spikes up, at 0.0005, it goes slightly below 0.04. Not great. We have to go deeper instead
+#   * At 0.001, loss spikes up, at 0.0005, it goes at around 0.38. Not great. We have to go deeper instead
 #   * L2 at strength 1: 0.55
 ###############################################################################
 
@@ -70,8 +70,8 @@ if __name__ == "__main__":
     # This time, we use a cosine schedule.
     # We also decrease the number of steps to 100, following the original codebase.
     num_timesteps = 1000
-    betas = ScaledLinearBetaSchedule(num_timesteps)
-    ddpm = DDPM(betas, model)
+    betas = ScaledLinearBetaSchedule(num_train_timesteps=num_timesteps)
+    ddpm = DDPM(betas, model, num_timesteps=num_timesteps, device=device)
 
     # Load the MNIST dataset.
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=512)

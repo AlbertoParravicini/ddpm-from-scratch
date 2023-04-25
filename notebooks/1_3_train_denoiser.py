@@ -11,7 +11,7 @@ from segretini_matplottini.utils.colors import PALETTE_1
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 from tqdm import tqdm
 
-from ddpm_from_scratch.samplers.ddim import DDIM
+from ddpm_from_scratch.samplers import DDPM
 from ddpm_from_scratch.models.spiral_denoising_model import SinusoidalEncoding, SpiralDenoisingModel
 from ddpm_from_scratch.utils import COOL_GREEN, LinearBetaSchedule, make_spiral
 
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     # We stick to them for consistency with "Denoising diffusion probabilistic models from first principles".
     num_timesteps = 1000
     betas = LinearBetaSchedule(num_train_timesteps=1000, β_start=8e-6, β_end=9e-5)
-    ddpm = DDIM(betas, model, device="cpu", num_timesteps=num_timesteps)
+    ddpm = DDPM(betas, model, device="cpu", num_timesteps=num_timesteps)
 
     # Create a spiral, and add noise using the new distribution.
     X = make_spiral(1000, normalize=True)
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     for i in progress_bar:
         # Zero gradients at every step
         optimizer.zero_grad()
-        # Take a random timestep
+        # Take a random batch of timesteps
         t = torch.randint(low=0, high=num_timesteps, size=(batch_size,))
         # Add some noise to the spiral (this is done without gradient!)
         with torch.no_grad():

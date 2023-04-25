@@ -31,6 +31,7 @@ if __name__ == "__main__":
     # Define the denoising model.
     model = UNetSimpleWithTimestep()
     print(model)
+    print(f"trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
     # Define the optimizer.
     optimizer = torch.optim.Adam(model.parameters())

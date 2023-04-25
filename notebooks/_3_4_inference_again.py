@@ -59,7 +59,7 @@ if __name__ == "__main__":
         set_alpha_to_one=False,
         prediction_type="epsilon",
     )
-    scale = 15
+    scale = 9
     ddim.set_timesteps(num_timesteps)
     ddim.timesteps = ddim.timesteps.to(x.device)
     callback = MnistInferenceGifCallback(filename=PLOT_DIR / f"3_4_inference_diffusers.gif")

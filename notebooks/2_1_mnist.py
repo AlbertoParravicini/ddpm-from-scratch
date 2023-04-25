@@ -41,20 +41,24 @@ if __name__ == "__main__":
     reset_plot_style(xtick_major_pad=4, ytick_major_pad=4, border_width=1.5, label_pad=4)
     PLOT_DIR.mkdir(exist_ok=True, parents=True)
     DATA_DIR.mkdir(exist_ok=True, parents=True)
+    # Let's use a GPU if available!
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Define the denoising model
     model = UNetSimple()
     print(model)
+    print(f"trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
     # Define the optimizer
     optimizer = torch.optim.Adam(model.parameters())
 
-    # Create the diffusion process.
+    # Create the diffusion process. Here we use "realistic" values for the beta schedule,
+    # so that we obtain pure Gaussian noise at timestep T=1000.
     num_timesteps = 1000
-    betas = LinearBetaSchedule(num_timesteps, 8e-6, 9e-5)
-    ddpm = DDPM(betas, model)
+    betas = LinearBetaSchedule(num_train_timesteps=num_timesteps)
+    ddpm = DDPM(betas, model, device=device, num_timesteps=num_timesteps)
 
-    # Load the MNIST dataset
+    # Load the MNIST dataset. We'll use just the training split for now.
     mnist = MNIST(
         root=DATA_DIR,
         download=True,
@@ -66,28 +70,33 @@ if __name__ == "__main__":
             ]
         ),
     )
-    batch_size = 4
+    # Small batch size meant for CPUs. If you have a GPU, feel free to scale it to 128 or more.
+    # You should increase the learning rate when using a larger batch size,
+    # but in this example it doesn't matter much.
+    batch_size = 128 if device == "cuda" else 32
     dataloader = DataLoader(mnist, batch_size=batch_size, shuffle=True, num_workers=1)
 
     #%% Train the model.
     # This training is identical to denoising the spiral,
-    # but we do one or more epochs over the full MNIST dataset.
-    num_training_epochs = 3
+    # but we do multiple epochs over the full MNIST dataset.
+    num_training_epochs = 16 if device == "cuda" else 3
     losses = []
     progress_bar_epoch = tqdm(range(num_training_epochs), desc="training")
     for e in progress_bar_epoch:
         progress_bar_step = tqdm(dataloader, desc=f"epoch {e}")
         # Iterate over the dataset, but ignore the class for now
         for i, (x, _) in enumerate(progress_bar_step):
+            # Move the data to the GPU if available
+            x = x.to(device)
             # Zero gradients at every step
             optimizer.zero_grad()
-            # Take a random timestep
-            t = np.random.randint(num_timesteps, size=batch_size)
+            # Take a random batch of timesteps
+            t = torch.randint(low=0, high=num_timesteps, size=(x.shape[0],))
             # Add some noise to the data
             with torch.no_grad():
                 x_noisy, noise = ddpm.forward_sample(t, x)
             # Predict the noise
-            _, predicted_noise = ddpm.predict_x_0_and_noise(t, x_noisy)
+            predicted_noise = model(t, x_noisy)
             # Compute loss, as L2 of real and predicted noise
             loss = torch.mean((noise - predicted_noise) ** 2)
             # Backward step
@@ -106,7 +115,7 @@ if __name__ == "__main__":
     save_plot(PLOT_DIR, "2_1_loss_function.png", create_date_dir=False)
 
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...)
-    x = get_one_element_per_digit(mnist)
+    x = get_one_element_per_digit(mnist).to(device)
     x_noisy, _ = ddpm.forward_sample(num_timesteps - 1, x)  # Add noise
     with imageio.get_writer(PLOT_DIR / "2_1_inference.gif", mode="I") as writer:  # Create a GIF!
         steps = np.linspace(1, 0, num_timesteps)

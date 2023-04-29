@@ -7,11 +7,14 @@ import pandas as pd
 import torch
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 
-from ddpm_from_scratch.engines.mnist import (MnistInferenceGifCallback,
-                                             get_one_element_per_digit,
-                                             inference, load_mnist, train)
-from ddpm_from_scratch.models.unet_simple_with_timestep import \
-    UNetSimpleWithTimestep
+from ddpm_from_scratch.engines.mnist import (
+    MnistInferenceGifCallback,
+    get_one_element_per_digit,
+    inference,
+    load_mnist,
+    train,
+)
+from ddpm_from_scratch.models.unet_simple_with_timestep import UNetSimpleWithTimestep
 from ddpm_from_scratch.samplers.ddpm import DDPM
 from ddpm_from_scratch.utils import LinearBetaSchedule
 
@@ -27,6 +30,7 @@ class Config:
     num_training_epochs: int
     batch_size: int
     lr: float
+    device: torch.device
 
 
 # Let's use the GPU if available! If we use the GPU, train for longer,
@@ -34,8 +38,8 @@ class Config:
 # but in this simple example it doesn't matter.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 TRAINING_CONFIG: dict[str, Config] = {
-    "cuda": Config(num_training_epochs=32, batch_size=128, lr=1e-4),
-    "cpu": Config(num_training_epochs=3, batch_size=32, lr=1e-3),
+    "cuda": Config(num_training_epochs=32, batch_size=128, lr=1e-4, device=torch.device("cuda")),
+    "cpu": Config(num_training_epochs=3, batch_size=32, lr=1e-3, device=torch.device("cpu")),
 }
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
@@ -51,9 +55,10 @@ if __name__ == "__main__":
     DATA_DIR.mkdir(exist_ok=True, parents=True)
     # Let's obtain the right configuration for the training
     config = TRAINING_CONFIG[DEVICE]
+    device = config.device
 
     # Define the denoising model.
-    model = UNetSimpleWithTimestep().to(DEVICE)
+    model = UNetSimpleWithTimestep().to(device)
     print(model)
     print(f"trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
@@ -63,7 +68,7 @@ if __name__ == "__main__":
     # Create the diffusion process.
     num_timesteps = 1000
     betas = LinearBetaSchedule(num_train_timesteps=num_timesteps)
-    ddpm = DDPM(betas, model, device=DEVICE, num_timesteps=num_timesteps)
+    ddpm = DDPM(betas, model, device=device, num_timesteps=num_timesteps)
 
     # Load the MNIST dataset. Split between training and test set.
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=config.batch_size)
@@ -75,7 +80,7 @@ if __name__ == "__main__":
         sampler=ddpm,
         optimizer=optimizer,
         epochs=config.num_training_epochs,
-        device=DEVICE,
+        device=device,
     )
 
     #%% Plot the loss function
@@ -89,7 +94,7 @@ if __name__ == "__main__":
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...).
     # We wrap the inference code into a function for simplicity, but the code is unchanged from `2_1_mnist.py`.
     # We also add a callback to save the intermediate results into a GIF, rather than manually handling the plotting.
-    x = get_one_element_per_digit(mnist_test).to(DEVICE)
+    x = get_one_element_per_digit(mnist_test).to(device)
     # Add noise to the digits.
     x_noisy, _ = ddpm.forward_sample(num_timesteps - 1, x)
     # Do inference, and store results into the GIF, using the callback.

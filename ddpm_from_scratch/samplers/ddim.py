@@ -4,8 +4,7 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
-from ddpm_from_scratch.utils import (B, BetaSchedule, T, Timestep,
-                                     expand_to_dims)
+from ddpm_from_scratch.utils import B, BetaSchedule, T, Timestep, expand_to_dims
 
 
 class DDIM:
@@ -50,7 +49,11 @@ class DDIM:
             pass
 
     def forward_sample(
-        self, t: Timestep, x_0: TensorType["float"], noise: Optional[TensorType["float"]] = None
+        self,
+        t: Timestep,
+        x_0: TensorType["float"],
+        noise: Optional[TensorType["float"]] = None,
+        generator: Optional[torch.Generator] = None,
     ) -> tuple[TensorType["float"], TensorType["float"]]:
         """
         Compute `q(x_i | x_0)`, as a sample of a Gaussian process with equation
@@ -61,10 +64,11 @@ class DDIM:
         :param t: current timestep, as integer. It must be `[0, self.num_timesteps]`
         :param x_0: value of `x_0`, the value on which the forward process q is conditioned
         :param noise: noise added to the forward process. If None, sample from a standard Gaussian
+        :param generator: random number generator used to sample the noise
         :return: the sampled value of `q(x_i | x_0)`, and the added noise
         """
         if noise is None:
-            noise = torch.randn(*x_0.shape, device=x_0.device)
+            noise = torch.randn(*x_0.shape, device=x_0.device, generator=generator)
         # Since `t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_0`.
         sqrt_alpha = expand_to_dims(self.alpha_cumprods[t] ** 0.5, x_0)
         sqrt_one_minus_alpha = expand_to_dims((1 - self.alpha_cumprods[t]) ** 0.5, x_0)
@@ -91,7 +95,8 @@ class DDIM:
         :return: prediction of `x_0` and prediction of the noise added to `x_0` to obtain `x_start`
         """
         # Ensure the timestep is an integer tensor.
-        _t: torch.Tensor = torch.tensor(t, dtype=torch.long, device=x_t.device) if not torch.is_tensor(t) else t
+        _t = torch.tensor(t, dtype=torch.long, device=x_t.device) if not torch.is_tensor(t) else t
+        assert isinstance(_t, torch.Tensor)
         # Ensure the timestep is not a scalar, it must have at least 1 dimension
         if len(_t.shape) == 0:
             _t = _t.unsqueeze(0)

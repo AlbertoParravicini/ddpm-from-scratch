@@ -48,7 +48,7 @@ PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
 
 
-def get_one_element_per_digit(mnist) -> TensorType[10, 1, 28, 28]:
+def get_one_element_per_digit(mnist: MNIST) -> TensorType[10, 1, 28, 28]:
     """
     Get a single sample digit for each target category in MNIST, and return the result as a tensor.
     The output is a `[10, 1, 28, 28]` tensor, with digits `[0, 1, 2, ..., 9]`
@@ -165,7 +165,7 @@ if __name__ == "__main__":
             timestep = min(int(t * num_timesteps), num_timesteps - 1)
             # Inference, predict the next step given the current one
             with torch.no_grad():
-                x_noisy, _ = ddpm.backward_sample(timestep, x_noisy, add_noise=t != 0, clip_predicted_x_0=False)
+                x_noisy, _ = ddpm.backward_sample(timestep, x_noisy, add_noise=bool(t != 0), clip_predicted_x_0=False)
             # Plot the denoised digit, every few steps
             if timestep % (num_timesteps // 20) == 0 or timestep == num_timesteps - 1:
                 # Plot multiple digits as a grid, each in a separate column
@@ -174,5 +174,5 @@ if __name__ == "__main__":
                 filename = f"2_1_inference_{timestep}.jpeg"
                 F.to_pil_image(grid).save(PLOT_DIR / filename)
                 image = imageio.imread(PLOT_DIR / filename)
-                writer.append_data(image)
+                writer.append_data(image)  # type: ignore
                 os.remove(PLOT_DIR / filename)

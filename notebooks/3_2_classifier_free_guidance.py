@@ -4,14 +4,11 @@ import numpy as np
 import torch
 from segretini_matplottini.utils.plot_utils import reset_plot_style
 
-from ddpm_from_scratch.engines.mnist import (MnistInferenceGifCallback,
-                                             get_one_element_per_digit,
-                                             inference, load_mnist)
+from ddpm_from_scratch.engines.mnist import MnistInferenceGifCallback, get_one_element_per_digit, inference, load_mnist
 from ddpm_from_scratch.models.unet_conditioned_v2 import UNetConditioned
 from ddpm_from_scratch.samplers.ddim import DDIM
 from ddpm_from_scratch.samplers.ddpm import DDPM
-from ddpm_from_scratch.utils import (CosineBetaSchedule,
-                                     ScaledLinearBetaSchedule)
+from ddpm_from_scratch.utils import CosineBetaSchedule, ScaledLinearBetaSchedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"

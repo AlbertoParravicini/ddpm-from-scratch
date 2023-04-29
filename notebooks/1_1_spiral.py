@@ -138,6 +138,6 @@ if __name__ == "__main__":
             filename = f"1_1_spiral_noise_{t}.png"
             save_plot(PLOT_DIR, filename, create_date_dir=False)
             image = imageio.imread(PLOT_DIR / filename)
-            writer.append_data(image)
+            writer.append_data(image)  # type: ignore
             os.remove(PLOT_DIR / filename)
             plt.close()

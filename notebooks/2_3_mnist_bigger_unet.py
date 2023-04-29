@@ -6,9 +6,13 @@ import pandas as pd
 import torch
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 
-from ddpm_from_scratch.engines.mnist import (MnistInferenceGifCallback,
-                                             get_one_element_per_digit,
-                                             inference, load_mnist, train)
+from ddpm_from_scratch.engines.mnist import (
+    MnistInferenceGifCallback,
+    get_one_element_per_digit,
+    inference,
+    load_mnist,
+    train,
+)
 from ddpm_from_scratch.models.unet import UNet
 from ddpm_from_scratch.samplers.ddpm import DDPM
 from ddpm_from_scratch.utils import CosineBetaSchedule
@@ -41,8 +45,8 @@ if __name__ == "__main__":
     # This time, we use a cosine schedule.
     # We also decrease the number of steps to 100, following the original codebase.
     num_timesteps = 100
-    betas = CosineBetaSchedule(num_timesteps).to(device)
-    ddpm = DDPM(betas, model)
+    betas = CosineBetaSchedule(num_timesteps)
+    ddpm = DDPM(betas, model, num_timesteps=num_timesteps, device=device)
 
     # Load the MNIST dataset.
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=32)

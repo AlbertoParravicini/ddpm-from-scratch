@@ -1,15 +1,15 @@
 from math import log
+from typing import cast
 
 import torch
 import torch.nn as nn
 from torchtyping import TensorType
-from typing import cast
 
 from ddpm_from_scratch.utils import B, N
 
 
 class SinusoidalEncoding(nn.Module):
-    def __init__(self, size, maximum_length: int = 5000) -> None:
+    def __init__(self, size: int, maximum_length: int = 5000) -> None:
         """
         Sinusoidal Positional Encoding introduced by Vaswani et al. [1].
         Use a fixed trigonometric encoding for the position of an element in a sequence,
@@ -35,10 +35,13 @@ class SinusoidalEncoding(nn.Module):
         pe[:, 0::2] = torch.sin(pos * div)
         pe[:, 1::2] = torch.cos(pos * div)
         self.register_buffer("pe", pe)
+        # Useless casting, but type checkers cannot understand
+        # that self.pe is a tensor after it is registered as buffer
+        # self.pe = cast(torch.Tensor, pe)
 
     def forward(self, t: TensorType["B", "int"]) -> TensorType["B", "N", "float"]:
         # Extract the encodings specified by the input timesteps
-        return cast(torch.Tensor, self.pe)[t]
+        return self.pe[t]  # type: ignore
 
 
 class SpiralDenoisingModel(nn.Module):

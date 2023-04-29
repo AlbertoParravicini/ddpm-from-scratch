@@ -2,13 +2,11 @@ from typing import Sequence
 
 import torch
 import torch.nn as nn
-from einops import rearrange  # type: ignore
+from einops import rearrange
 from torchtyping import TensorType
 
-from ddpm_from_scratch.models.unet_simple_with_timestep import \
-    TimestepEmbedding
-from ddpm_from_scratch.utils import (C1, C2, H1, H2, W1, W2, B, C, H, W,
-                                     expand_to_dims)
+from ddpm_from_scratch.models.unet_simple_with_timestep import TimestepEmbedding
+from ddpm_from_scratch.utils import C1, C2, H1, H2, W1, W2, B, C, H, W, expand_to_dims
 
 
 class ResBlock(nn.Module):
@@ -101,14 +99,16 @@ class MultiheadAttention(nn.Module):
 
 
 class UpDownBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, down=False, up=False):
+    def __init__(self, in_channels: int, out_channels: int, down: bool = False, up: bool = False) -> None:
         super().__init__()
         self.attention_1 = MultiheadAttention(in_channels)
         self.resnet = ResBlock(in_channels=in_channels, out_channels=out_channels, down=down, up=up)
         self.attention_2 = MultiheadAttention(out_channels)
         self.timestep_embedding = TimestepEmbedding(out_channels)
 
-    def forward(self, t: TensorType["B", "int"], x: TensorType["B", "C", "H", "W", "float"]):
+    def forward(
+        self, t: TensorType["B", "int"], x: TensorType["B", "C1", "H1", "W1", "float"]
+    ) -> TensorType["B", "C2", "H2", "W2", "float"]:
         x = self.attention_1(t, x) + x
         x = self.resnet(t, x)
         x = self.attention_2(t, x) + x

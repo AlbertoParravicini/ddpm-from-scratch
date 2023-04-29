@@ -4,8 +4,7 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
-from ddpm_from_scratch.utils import (B, BetaSchedule, T, Timestep,
-                                     expand_to_dims)
+from ddpm_from_scratch.utils import B, BetaSchedule, T, Timestep, expand_to_dims
 
 
 class DDPM:
@@ -101,7 +100,8 @@ class DDPM:
         :return: prediction of `x_0` and prediction of the noise added to `x_0` to obtain `x_start`
         """
         # Ensure the timestep is an integer tensor
-        _t: torch.Tensor = torch.tensor(t, dtype=torch.long, device=x_t.device) if not torch.is_tensor(t) else t
+        _t = torch.tensor(t, dtype=torch.long, device=x_t.device) if not torch.is_tensor(t) else t
+        assert isinstance(_t, torch.Tensor)
         # Ensure the timestep is not a scalar, it must have at least 1 dimension
         if len(_t.shape) == 0:
             _t = _t.unsqueeze(0)

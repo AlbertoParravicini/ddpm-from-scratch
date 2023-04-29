@@ -9,17 +9,17 @@ from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 from torchtyping import TensorType
 from tqdm import tqdm
 
-from ddpm_from_scratch.models.spiral_denoising_model import \
-    SpiralDenoisingModel
+from ddpm_from_scratch.models.spiral_denoising_model import SpiralDenoisingModel
 from ddpm_from_scratch.samplers.ddpm import DDPM
-from ddpm_from_scratch.utils import (LinearBetaSchedule,
-                                     ScaledLinearBetaSchedule, T)
+from ddpm_from_scratch.utils import BetaSchedule, LinearBetaSchedule, ScaledLinearBetaSchedule, T
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
 
 
-def plot_forward_coefficients(ddpm: DDPM, title: str, filename: str, β_start: float = 1e-6, β_end: float = 0.015):
+def plot_forward_coefficients(
+    ddpm: DDPM, title: str, filename: str, β_start: float = 1e-6, β_end: float = 0.015
+) -> None:
     reset_plot_style(xtick_major_pad=4, ytick_major_pad=4, border_width=1.5, label_pad=4, grid_linewidth=0.4)
     num_plots = 4
     num_timesteps = ddpm.num_timesteps
@@ -57,7 +57,7 @@ def plot_forward_coefficients(ddpm: DDPM, title: str, filename: str, β_start: f
     save_plot(PLOT_DIR, filename, create_date_dir=False, bbox_inches="tight")
 
 
-def plot_posterior_coefficients(ddpm: DDPM, title: str, filename: str, β_end: float = 0.015):
+def plot_posterior_coefficients(ddpm: DDPM, title: str, filename: str, β_end: float = 0.015) -> None:
     reset_plot_style(xtick_major_pad=4, ytick_major_pad=4, border_width=1.5, label_pad=4, grid_linewidth=0.4)
     num_plots = 3
     num_timesteps = ddpm.num_timesteps
@@ -111,9 +111,10 @@ if __name__ == "__main__":
 
     # Plot the coefficients of a beta schedule, using the default DDPM values
     num_timesteps = 1000
-    betas = LinearBetaSchedule()
+    betas: BetaSchedule = LinearBetaSchedule()
     model = SpiralDenoisingModel()
-    ddpm = DDPM(betas, model, device="cpu", num_timesteps=num_timesteps)
+    device = torch.device("cpu")
+    ddpm = DDPM(betas, model, device=device, num_timesteps=num_timesteps)
 
     # Plot the beta schedule, alphas, and the coefficients of the forward process q(x_t | x_0),
     # which defines x_t ~ N(sqrt(cumprod_alpha_t) * x_0, (1 - cumprod_alpha_t) * I).
@@ -147,7 +148,7 @@ if __name__ == "__main__":
     num_timesteps = 100
     betas = LinearBetaSchedule(num_train_timesteps=1000)
     model = SpiralDenoisingModel()
-    ddpm = DDPM(betas, model, device="cpu", num_timesteps=num_timesteps)
+    ddpm = DDPM(betas, model, device=device, num_timesteps=num_timesteps)
 
     # Plot again the beta schedule, alphas, and the coefficients of the forward process q(x_t | x_0).
     plot_forward_coefficients(
@@ -175,7 +176,7 @@ if __name__ == "__main__":
     num_timesteps = 1000
     betas = ScaledLinearBetaSchedule()
     model = SpiralDenoisingModel()
-    ddpm = DDPM(betas, model, device="cpu", num_timesteps=num_timesteps)
+    ddpm = DDPM(betas, model, device=device, num_timesteps=num_timesteps)
 
     # Plot again the beta schedule, alphas, and the coefficients of the forward process q(x_t | x_0).
     plot_forward_coefficients(
@@ -206,7 +207,7 @@ if __name__ == "__main__":
         for i, b in tqdm(enumerate(max_beta_range)):
             betas = ScaledLinearBetaSchedule(num_train_timesteps=num_timesteps, β_end=b)
             model = SpiralDenoisingModel()
-            ddpm = DDPM(betas, model, device="cpu", num_timesteps=num_timesteps)
+            ddpm = DDPM(betas, model, device=device, num_timesteps=num_timesteps)
             plot_name = f"1_4_scaled_linear_betas_range_{i}.png"
             plot_forward_coefficients(
                 ddpm,
@@ -220,7 +221,7 @@ if __name__ == "__main__":
                 filename=plot_name,
             )
             image = imageio.imread(PLOT_DIR / plot_name)
-            writer.append_data(image)
+            writer.append_data(image)  # type: ignore
             os.remove(PLOT_DIR / plot_name)
             plt.close()
     #%% In this case, we see how the posterior variance changes greatly,
@@ -235,7 +236,7 @@ if __name__ == "__main__":
         for i, b in tqdm(enumerate(max_beta_range)):
             betas = LinearBetaSchedule(num_train_timesteps=num_timesteps, β_end=b)
             model = SpiralDenoisingModel()
-            ddpm = DDPM(betas, model, device="cpu", num_timesteps=num_timesteps)
+            ddpm = DDPM(betas, model, device=device, num_timesteps=num_timesteps)
             plot_name = f"1_4_posterior_coefficients_scaled_linear_betas_range_{i}.png"
             plot_posterior_coefficients(
                 ddpm,
@@ -249,6 +250,6 @@ if __name__ == "__main__":
                 filename=plot_name,
             )
             image = imageio.imread(PLOT_DIR / plot_name)
-            writer.append_data(image)
+            writer.append_data(image)  # type: ignore
             os.remove(PLOT_DIR / plot_name)
             plt.close()

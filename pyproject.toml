@@ -23,6 +23,8 @@ torchtyping = "^0.1.4"
 tqdm = "^4.64.1"
 einops = "^0.6.0"
 mypy = "^1.2.0"
+pandas-stubs = "^2.0.0.230412"
+types-tqdm = "^4.65.0.1"
 
 [tool.setuptools]
 packages = ["ddpm_from_scratch"]

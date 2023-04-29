@@ -2,11 +2,10 @@ from typing import Optional, Sequence
 
 import torch
 import torch.nn as nn
-from einops import rearrange  # type: ignore
+from einops import rearrange
 from torchtyping import TensorType
 
-from ddpm_from_scratch.utils import (C1, C2, H1, H2, W1, W2, B, C, H, N, W,
-                                     expand_to_dims)
+from ddpm_from_scratch.utils import C1, C2, H1, H2, W1, W2, B, C, H, N, W, expand_to_dims
 
 
 class EmbeddingProjection(nn.Module):
@@ -130,9 +129,9 @@ class UpDownBlock(nn.Module):
 
     def forward(
         self,
-        x: TensorType["B", "C", "H", "W", "float"],
+        x: TensorType["B", "C1", "H1", "W1", "float"],
         e: TensorType["B", "N", "float"],
-    ):
+    ) -> TensorType["B", "C2", "H2", "W2", "float"]:
         x = self.resnet(x, e)
         return x
 

@@ -2,13 +2,11 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from diffusers import DDIMScheduler, DDPMScheduler
+from diffusers import DDIMScheduler, DDPMScheduler  # type: ignore
 from segretini_matplottini.utils.plot_utils import reset_plot_style
 from tqdm import tqdm
 
-from ddpm_from_scratch.engines.mnist import (MnistInferenceGifCallback,
-                                             get_one_element_per_digit,
-                                             inference, load_mnist)
+from ddpm_from_scratch.engines.mnist import MnistInferenceGifCallback, get_one_element_per_digit, inference, load_mnist
 from ddpm_from_scratch.models.unet_conditioned_v2 import UNetConditioned
 from ddpm_from_scratch.models.unet_simple import UNetSimple
 from ddpm_from_scratch.samplers.ddim import DDIM

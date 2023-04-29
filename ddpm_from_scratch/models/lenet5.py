@@ -1,5 +1,5 @@
 import torch.nn as nn
-from einops import rearrange  # type: ignore
+from einops import rearrange
 from torchtyping import TensorType
 
 from ddpm_from_scratch.utils import B, C, H, M, N, W

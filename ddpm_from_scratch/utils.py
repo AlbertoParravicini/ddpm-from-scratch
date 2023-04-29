@@ -21,7 +21,7 @@ C2 = TypeVar("C2")  # Number of color channels
 W2 = TypeVar("W2")  # Width
 H2 = TypeVar("H2")  # Height
 
-Timestep = Union[int, Sequence[int], TensorType["B", "int"]]
+Timestep = Union[int, list[int], TensorType["B", "int"]]
 
 
 def univariate_gaussian_sample(n: int, μ: float = 0, σ: float = 1) -> TensorType["N", "float"]:
@@ -163,7 +163,7 @@ class CosineBetaSchedule(BetaSchedule):
         return β
 
 
-def expand_to_dims(x: torch.Tensor, y: torch.Tensor):
+def expand_to_dims(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """
     Expand the shape of `x` to match the number of dimensions of `y`, by adding
     size-1 dimensions to `x`. For example, if `x` has shape `[4]` and `y` has shape `[4, 2, 3]`,

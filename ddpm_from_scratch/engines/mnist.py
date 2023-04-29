@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import torchvision.transforms as T
 from torch.optim import Optimizer
-from torch.optim.lr_scheduler import _LRScheduler
+from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
 from torchtyping import TensorType
 from torchvision.datasets.mnist import MNIST
@@ -76,7 +76,7 @@ def load_mnist(data_root: Path, batch_size: int = 4) -> tuple[MNIST, DataLoader,
     return mnist_train, dataloader_train, mnist_test, dataloader_test
 
 
-def get_one_element_per_digit(mnist) -> TensorType[10, 1, 28, 28]:
+def get_one_element_per_digit(mnist: MNIST) -> TensorType[10, 1, 28, 28]:
     """
     Get a single sample digit for each target category in MNIST, and return the result as a tensor.
     The output is a `[10, 1, 28, 28]` tensor, with digits `[0, 1, 2, ..., 9]`
@@ -89,7 +89,11 @@ def get_one_element_per_digit(mnist) -> TensorType[10, 1, 28, 28]:
 
 
 def train(
-    dataloader: DataLoader, sampler: Sampler, optimizer: Optimizer, epochs: int = 1, device=torch.device("cpu")
+    dataloader: DataLoader,
+    sampler: Sampler,
+    optimizer: Optimizer,
+    epochs: int = 1,
+    device: torch.device = torch.device("cpu"),
 ) -> list[float]:
     """
     Train a diffusion model on MNIST. At each step, sample a digit,
@@ -113,7 +117,7 @@ def train(
             # Zero gradients at every step
             optimizer.zero_grad()
             # Take a random timestep
-            t = torch.randint(low=0, high=sampler.num_timesteps, size=(dataloader.batch_size,), device=device)
+            t = torch.randint(low=0, high=sampler.num_timesteps, size=(x.shape[0],), device=device)
             # Add some noise to the data
             with torch.no_grad():
                 x_noisy, noise = sampler.forward_sample(t, x)
@@ -136,9 +140,9 @@ def train_with_class_conditioning(
     dataloader: DataLoader,
     sampler: Sampler,
     optimizer: Optimizer,
-    scheduler: Optional[_LRScheduler] = None,
+    scheduler: Optional[LRScheduler] = None,
     epochs: int = 1,
-    device=torch.device("cpu"),
+    device: torch.device = torch.device("cpu"),
     classifier_free_probability: float = 0.1,
     validation_dataloader: Optional[DataLoader] = None,
     validation_every_n_epochs: int = 1,
@@ -209,7 +213,7 @@ def train_with_class_conditioning(
         if scheduler is not None:
             scheduler.step()
             progress_bar_postfix["lr"] = scheduler.get_last_lr()[0]
-        progress_bar_postfix["loss"] = np.mean(losses_epoch)
+        progress_bar_postfix["loss"] = float(np.mean(losses_epoch))
 
         # Validation loop, every validation_every_n_epochs epochs
         if validation_dataloader is not None and e % validation_every_n_epochs == 0:
@@ -244,7 +248,7 @@ def train_with_class_conditioning(
 
             # Track the mean loss during the validation step, instead of single steps,
             # to obtain a smoother estimate of the validation loss
-            validation_loss_epoch = np.mean(validation_losses_epoch)
+            validation_loss_epoch = float(np.mean(validation_losses_epoch))
             validation_losses += [validation_loss_epoch]
             if validation_dataloader is not None:  # Track the validation loss in the main progress bar
                 progress_bar_postfix["val_loss"] = validation_loss_epoch

@@ -13,6 +13,7 @@
 !ddpm_from_scratch
 !ddpm_from_scratch/models
 !ddpm_from_scratch/engines
+!ddpm_from_scratch/samplers
 !ddpm_from_scratch/**/*.py
 !notebooks
 !notebooks/*.py

@@ -37,7 +37,7 @@ if __name__ == "__main__":
     model = UNetConditioned(num_classes=10, hidden_channels=24).to(device)
 
     # Create the diffusion process.
-    num_timesteps = 50
+    num_timesteps = 1000
     betas = ScaledLinearBetaSchedule()
     ddpm_fake = DDIM(betas, model, device=device, num_timesteps=num_timesteps)
     
@@ -46,6 +46,8 @@ if __name__ == "__main__":
 
     # Load the trained model
     model.load_state_dict(torch.load(DATA_DIR / "unet_conditioned.pt"))
+    model = model.half()
+    model = torch.compile(model, mode="max-autotune")
 
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...).
     x = get_one_element_per_digit(mnist_test).to(device)
@@ -69,10 +71,10 @@ if __name__ == "__main__":
         x, noise=noise, timesteps=torch.tensor(1000 - 1, device=x.device, dtype=torch.long)
     )
     model.eval()
-    x_t = x_noisy
+    x_t = x_noisy.half()
     for t in tqdm(ddim.timesteps, desc="inference"):
         # Inference, predict the next step given the current one
-        with torch.inference_mode():
+        with torch.no_grad():
             noise_pred_cond = model(t.unsqueeze(0), x_t, torch.arange(0, 10, device=device))
             noise_pred_uncond = model(t.unsqueeze(0), x_t)
             noise_pred = noise_pred_uncond + scale * (noise_pred_cond - noise_pred_uncond)

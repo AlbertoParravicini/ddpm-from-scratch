@@ -30,9 +30,9 @@ In the first part, we learn how to create a DDPM using a toy problem: denoising 
 
 ### Tackling MNIST
 
-In the second part, we build a realistic UNet to denoise the MNIST dataset, and learn how to evaluate the quality of a diffusion model.
+In the second part, we build a realistic UNet to generate digits from the MNIST dataset, and learn how to evaluate the quality of a diffusion model.
 
-* `2_1_mnist.py`. Let's create a very simple UNet without time-step conditioning, and see if we can use it to denoise MNIST digits. Surprisingly, it works well even without any information on the time-step. There's still room to improve though.
+* `2_1_mnist.py`. Let's create a very simple UNet without time-step conditioning, and see if we can use it to generate MNIST digits. Unsurprisingly, it doesn't work very well. If we look at the loss curve, we see that it goes down slightly over time, but with only 55000 parameters the model does not have enough capacity to generate digits from scratch. Indeed, we generate things that look like digits, but not quite.
 * `2_2_mnist.py`. Here we modify the UNet to have conditioning on the time-step. It turns out that results are not much different than before, hinting that the model might be too simple for the task.
 * `2_3_unet.py`. In this notebook, we train a much more complex UNet, not too different from the ones you might see in real papers. It has ResNet blocks, self-attention blocks, and time-step conditioning. Also, we use a cosine `β schedule` to improve the quality of the diffusion process. Results are significantly better than before! While we can denoise digits very well, we observe that we cannot quite create digits when starting from pure noise. Some additional tricks are needed!
 * `2_4_lenet.py`. Although we can evaluate the quality of denosing with a simple L2 norm, measuring the quality of digits generated from scratch is more difficult. We'll use FID, a distance that measures the distribution shift between features of real and generated digits. To compute this metric, we need a classifier, or some other kind of model trained on the images that we want to generate. So, we train a simple LeNet5, and we will later use it to compute the FID.

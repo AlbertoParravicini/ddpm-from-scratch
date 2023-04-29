@@ -1,23 +1,20 @@
+from datetime import datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
-from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 from segretini_matplottini.utils.colors import PALETTE_OG
+from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 
-from ddpm_from_scratch.samplers.ddpm import DDPM
-from ddpm_from_scratch.engines.mnist import (
-    MnistInferenceGifCallback,
-    get_one_element_per_digit,
-    inference,
-    load_mnist,
-    train_with_class_conditioning,
-)
+from ddpm_from_scratch.engines.mnist import (MnistInferenceGifCallback,
+                                             get_one_element_per_digit,
+                                             inference, load_mnist,
+                                             train_with_class_conditioning)
 from ddpm_from_scratch.models.unet_conditioned_v2 import UNetConditioned
+from ddpm_from_scratch.samplers.ddpm import DDPM
 from ddpm_from_scratch.utils import ScaledLinearBetaSchedule
-from datetime import datetime
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"

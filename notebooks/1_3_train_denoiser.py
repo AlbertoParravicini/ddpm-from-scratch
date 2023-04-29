@@ -1,4 +1,5 @@
 import os
+from dataclasses import dataclass
 from pathlib import Path
 
 import imageio.v2 as imageio
@@ -11,11 +12,10 @@ from segretini_matplottini.utils.colors import PALETTE_1
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 from tqdm import tqdm
 
+from ddpm_from_scratch.models.spiral_denoising_model import (
+    SinusoidalEncoding, SpiralDenoisingModel)
 from ddpm_from_scratch.samplers import DDPM
-from ddpm_from_scratch.models.spiral_denoising_model import SinusoidalEncoding, SpiralDenoisingModel
 from ddpm_from_scratch.utils import COOL_GREEN, LinearBetaSchedule, make_spiral
-
-from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -31,19 +31,22 @@ class Config:
     lr: float
 
 
-PLOT_DIR = Path(__file__).parent.parent / "plots"
-
-# Use the GPU if available. If we use the GPU, train for longer.
+# Let's use the GPU if available! If we use the GPU, train for longer,
+# and with a bigger batch size for a more stable training. We should use a larger LR,
+# but in this simple example it doesn't matter.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 TRAINING_CONFIG: dict[str, Config] = {
     "cuda": Config(num_training_steps=80000, batch_size=128, lr=1e-3),
     "cpu": Config(num_training_steps=20000, batch_size=32, lr=1e-3),
 }
 
+PLOT_DIR = Path(__file__).parent.parent / "plots"
+
 #%%
 if __name__ == "__main__":
     # Setup.
     np.random.seed(seed=42)
+    torch.manual_seed(42)
     reset_plot_style(xtick_major_pad=4, ytick_major_pad=4, border_width=1.5, label_pad=4)
     PLOT_DIR.mkdir(exist_ok=True, parents=True)
 
@@ -79,9 +82,6 @@ if __name__ == "__main__":
     num_training_steps = config.num_training_steps
     batch_size = config.batch_size
     losses = []
-    # Create a generator for reproducibility
-    generator = torch.Generator(device=DEVICE)
-    generator.manual_seed(42)
     # Replicate the spiral to obtain the desired batch size.
     X_train = X.repeat([batch_size, 1, 1])
     # Training loop
@@ -90,10 +90,10 @@ if __name__ == "__main__":
         # Zero gradients at every step
         optimizer.zero_grad()
         # Take a random batch of timesteps
-        t = torch.randint(low=0, high=num_timesteps, size=(batch_size,), generator=generator, device=DEVICE)
+        t = torch.randint(low=0, high=num_timesteps, size=(batch_size,), device=DEVICE)
         # Add some noise to the spiral (this is done without gradient!)
         with torch.no_grad():
-            X_noisy, noise = ddpm.forward_sample(t, X_train, generator=generator)
+            X_noisy, noise = ddpm.forward_sample(t, X_train)
         # Predict the noise
         predicted_noise = model(t, X_noisy)
         # Compute loss, as L2 of real and predicted noise

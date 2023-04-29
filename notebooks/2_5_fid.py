@@ -4,11 +4,12 @@ import torch
 from torchtyping import TensorType
 from tqdm import tqdm
 
-from ddpm_from_scratch.samplers.ddpm import DDPM
 from ddpm_from_scratch.engines.mnist import inference, load_mnist
 from ddpm_from_scratch.models.lenet5 import LeNet5
 from ddpm_from_scratch.models.unet import UNet
-from ddpm_from_scratch.utils import B, N, CosineBetaSchedule, gaussian_frechet_distance
+from ddpm_from_scratch.samplers.ddpm import DDPM
+from ddpm_from_scratch.utils import (B, CosineBetaSchedule, N,
+                                     gaussian_frechet_distance)
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"

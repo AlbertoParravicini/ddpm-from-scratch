@@ -4,21 +4,22 @@ from pathlib import Path
 import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 from torchtyping import TensorType
 from tqdm import tqdm
 
+from ddpm_from_scratch.models.spiral_denoising_model import \
+    SpiralDenoisingModel
 from ddpm_from_scratch.samplers.ddpm import DDPM
-from ddpm_from_scratch.models.spiral_denoising_model import SpiralDenoisingModel
-from ddpm_from_scratch.utils import T, LinearBetaSchedule, ScaledLinearBetaSchedule
+from ddpm_from_scratch.utils import (LinearBetaSchedule,
+                                     ScaledLinearBetaSchedule, T)
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
 
 
-def plot_forward_coefficients(
-    ddpm: DDPM, title: str, filename: str, β_start: float = 1e-6, β_end: float = 0.015
-):
+def plot_forward_coefficients(ddpm: DDPM, title: str, filename: str, β_start: float = 1e-6, β_end: float = 0.015):
     reset_plot_style(xtick_major_pad=4, ytick_major_pad=4, border_width=1.5, label_pad=4, grid_linewidth=0.4)
     num_plots = 4
     num_timesteps = ddpm.num_timesteps
@@ -28,9 +29,9 @@ def plot_forward_coefficients(
     ax[0].plot(np.arange(num_timesteps), betas, lw=1, label=r"$\beta_t$")
     ax[1].plot(np.arange(num_timesteps), ddpm.alphas, lw=1, label=r"$\alpha_t = 1 - \beta_t$")
     ax[2].plot(np.arange(num_timesteps), ddpm.alpha_cumprods, lw=1, label=r"$\bar{\alpha}_t$")
-    ax[2].plot(np.arange(num_timesteps), ddpm.sqrt_alpha_cumprods, lw=1, label=r"$\sqrt{\bar{\alpha}_t}$")
-    ax[3].plot(np.arange(num_timesteps), ddpm.sqrt_one_minus_alpha**2, lw=1, label=r"$1 - \bar{\alpha}_t$")
-    ax[3].plot(np.arange(num_timesteps), ddpm.sqrt_alpha_cumprods, lw=1, label=r"$\sqrt{\bar{\alpha}_t}$")
+    ax[2].plot(np.arange(num_timesteps), ddpm.alpha_cumprods**0.5, lw=1, label=r"$\sqrt{\bar{\alpha}_t}$")
+    ax[3].plot(np.arange(num_timesteps), 1 - ddpm.alpha_cumprods, lw=1, label=r"$1 - \bar{\alpha}_t$")
+    ax[3].plot(np.arange(num_timesteps), ddpm.alpha_cumprods**0.5, lw=1, label=r"$\sqrt{\bar{\alpha}_t}$")
     ax[3].annotate(
         r"$x_t\, \sim\, \mathcal{N}(\sqrt{\bar{\alpha}_t}x_0,\, (1 - \bar{\alpha}_t)\mathbf{I})$",
         xy=(0.02, 0.85),
@@ -63,8 +64,8 @@ def plot_posterior_coefficients(ddpm: DDPM, title: str, filename: str, β_end: f
     betas = ddpm.betas
     assert len(betas) == num_timesteps
     _, ax = plt.subplots(nrows=num_plots, figsize=(8, 2.5 * num_plots), gridspec_kw=dict(hspace=0.3, top=0.93))
-    ax[0].plot(np.arange(num_timesteps), ddpm.sqrt_one_minus_alpha**2, lw=1, label=r"$1 - \bar{\alpha}_t$")
-    ax[0].plot(np.arange(num_timesteps), ddpm.sqrt_alpha_cumprods, lw=1, label=r"$\sqrt{\bar{\alpha}_t}$")
+    ax[0].plot(np.arange(num_timesteps), 1 - ddpm.alpha_cumprods, lw=1, label=r"$1 - \bar{\alpha}_t$")
+    ax[0].plot(np.arange(num_timesteps), ddpm.alpha_cumprods**0.5, lw=1, label=r"$\sqrt{\bar{\alpha}_t}$")
     ax[0].annotate(
         r"$x_t\, \sim\, \mathcal{N}(\sqrt{\bar{\alpha}_t}x_0,\, (1 - \bar{\alpha}_t)\mathbf{I})$",
         xy=(0.02, 0.85),
@@ -75,14 +76,17 @@ def plot_posterior_coefficients(ddpm: DDPM, title: str, filename: str, β_end: f
         xy=(0.86, 0.05),
         xycoords="axes fraction",
     )
-    ax[1].plot(np.arange(num_timesteps), ddpm.posterior_mean_x_0_coeff, lw=1, label=r"$\bar{\mu}_t,\, x_0$")
-    ax[1].plot(np.arange(num_timesteps), ddpm.posterior_mean_x_t_coeff, lw=1, label=r"$\bar{\mu}_t,\, x_t$")
+    posterior_mean_x_0_coeff = ddpm.betas * torch.sqrt(ddpm.alpha_cumprods_prevs) / (1 - ddpm.alpha_cumprods)
+    posterior_mean_x_t_coeff = (1 - ddpm.alpha_cumprods_prevs) * torch.sqrt(ddpm.alphas) / (1 - ddpm.alpha_cumprods)
+    posterior_variance = ddpm.betas * (1 - ddpm.alpha_cumprods_prevs) / (1 - ddpm.alpha_cumprods)
+    ax[1].plot(np.arange(num_timesteps), posterior_mean_x_0_coeff, lw=1, label=r"$\bar{\mu}_t,\, x_0$")
+    ax[1].plot(np.arange(num_timesteps), posterior_mean_x_t_coeff, lw=1, label=r"$\bar{\mu}_t,\, x_t$")
     ax[1].annotate(
         r"$\bar{\mu}_t = \frac{(1 - \bar{\alpha}_{t - 1}) \sqrt{\alpha_t}}{1 - \bar{\alpha}_t}x_t + \frac{\beta_t \sqrt{\bar{\alpha}_{t-1}}}{1 - \bar{\alpha}_t}x_0$",
         xy=(0.02, 0.85),
         xycoords="axes fraction",
     )
-    ax[2].plot(np.arange(num_timesteps), ddpm.posterior_variance, lw=1, label=r"$\bar{\beta}_t$")
+    ax[2].plot(np.arange(num_timesteps), posterior_variance, lw=1, label=r"$\bar{\beta}_t$")
     ax[2].annotate(
         r"$\bar{\beta}_t = \beta_t \frac{1 - \bar{\alpha}_{t - 1}}{1 - \bar{\alpha}_t}$",
         xy=(0.02, 0.85),

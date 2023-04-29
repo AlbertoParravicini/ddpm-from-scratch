@@ -163,7 +163,7 @@ def train_with_class_conditioning(
         validation set every `validation_every_n_epochs` epochs.
     :param seed: seed for the random number generators used in training and validation.
     :return: the list of losses, for each step of training.
-        If validation_dataloader is not None, also returns the list of validation losses. 
+        If validation_dataloader is not None, also returns the list of validation losses.
         Otherwise return an empty list instead of the validation losses.
     """
     losses: list[float] = []

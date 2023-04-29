@@ -4,7 +4,8 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
-from ddpm_from_scratch.utils import B, T, Timestep, expand_to_dims, BetaSchedule
+from ddpm_from_scratch.utils import (B, BetaSchedule, T, Timestep,
+                                     expand_to_dims)
 
 
 class DDPM:
@@ -15,14 +16,18 @@ class DDPM:
         num_timesteps: int,
         device: torch.device,
     ) -> None:
-        
+        """
+        DDPM sampler from "Denoising Diffusion Probabilistic Models", Jonathan Ho et al., 2020.
+        https://arxiv.org/pdf/2006.11239.pdf
+        """
+
         self.num_timesteps = num_timesteps
         # Store the number of steps on which the model is trained, since if we do inference on fewer timesteps
         # we need to multiply the inference timestep by the training timesteps / inference timesteps.
-        # That's because the model is trained with a time-step conditioning 
+        # That's because the model is trained with a time-step conditioning
         # that assumes the number of training timesteps.
         self._num_train_timesteps = betas.num_train_timesteps
-        
+
         ############################################
         # Coefficients used by the forward process #
         ############################################
@@ -30,26 +35,13 @@ class DDPM:
         self.betas = betas.betas(self.num_timesteps).to(device)
         self.alphas = 1 - self.betas
         self.alpha_cumprods = torch.cumprod(self.alphas, dim=0)
-        self.alpha_cumprods_prevs = torch.concatenate(
-            [torch.tensor([1.0], device=self.alpha_cumprods.device), self.alpha_cumprods[:-1]]
-        )
-        self.sqrt_alpha_cumprods = torch.sqrt(self.alpha_cumprods)
-        self.sqrt_one_minus_alpha = torch.sqrt(1 - self.alpha_cumprods)
 
         #########################################################
         # Coefficients used by the backward process / posterior #
         #########################################################
 
-        # 1 / sqrt(α_hat_t), used to estimate x_hat_0
-        self.sqrt_reciprocal_alpha_cumprods = 1 / torch.sqrt(self.alpha_cumprods)
-        # sqrt(1 / α_hat_t - 1), used to estimate x_hat_0
-        self.sqrt_reciprocal_alpha_cumprods_minus_one = torch.sqrt(1 / self.alpha_cumprods - 1)
-        # "beta_hat_t", β_t * (1 - α_hat_t-1) /  (1 - α_hat_t), variance of q(x_t-1 | x_t, x_0)
-        self.posterior_variance = self.betas * (1 - self.alpha_cumprods_prevs) / (1 - self.alpha_cumprods)
-        # "alpha_hat_t", mean of the backward process, as linear combination of x_t and x_0.
-        self.posterior_mean_x_0_coeff = self.betas * torch.sqrt(self.alpha_cumprods_prevs) / (1 - self.alpha_cumprods)
-        self.posterior_mean_x_t_coeff = (
-            (1 - self.alpha_cumprods_prevs) * torch.sqrt(self.alphas) / (1 - self.alpha_cumprods)
+        self.alpha_cumprods_prevs = torch.concatenate(
+            [torch.tensor([1.0], device=self.alpha_cumprods.device), self.alpha_cumprods[:-1]]
         )
 
         ################################
@@ -72,11 +64,11 @@ class DDPM:
         """
         Compute `q(x_i | x_0)`, as a sample of a Gaussian process with equation
         ```
-        sqrt_alpha_cumprods[t] * x_start + sqrt_one_minus_alpha[t] * noise
+        sqrt_alpha_cumprods[t] * x_0 + sqrt_one_minus_alpha[t] * noise
         ```
 
         :param t: current timestep, as integer. It must be `[0, self.num_timesteps]`
-        :param x_start: value of `x_0`, the value on which the forward process q is conditioned
+        :param x_0: value of `x_0`, the value on which the forward process q is conditioned
         :param noise: noise added to the forward process. If None, sample from a standard Gaussian
         :param generator: random number generator used to sample the noise
         :return: the sampled value of `q(x_i | x_0)`, and the added noise
@@ -84,8 +76,8 @@ class DDPM:
         if noise is None:
             noise = torch.randn(*x_0.shape, device=x_0.device, generator=generator)
         # Since `t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_0`.
-        sqrt_alpha_cumprod = expand_to_dims(self.sqrt_alpha_cumprods[t], x_0)
-        sqrt_one_minus_alpha = expand_to_dims(self.sqrt_one_minus_alpha[t], x_0)
+        sqrt_alpha_cumprod = expand_to_dims(self.alpha_cumprods[t] ** 0.5, x_0)
+        sqrt_one_minus_alpha = expand_to_dims(self.alpha_cumprods[t] ** 0.5, x_0)
         return sqrt_alpha_cumprod * x_0 + sqrt_one_minus_alpha * noise, noise
 
     def predict_x_0_and_noise(
@@ -118,34 +110,15 @@ class DDPM:
         _t_scaled = (_t * self._num_train_timesteps / self.num_timesteps).to(torch.long)
         # Predict noise with our model. Pass conditioning only if not None.
         # This allows supporting models that don't expect an additional conditioning
-        noise = (
-            self.model(_t_scaled, x_t, conditioning)
-            if conditioning is not None
-            else self.model(_t_scaled, x_t)
-        )
+        noise = self.model(_t_scaled, x_t, conditioning) if conditioning is not None else self.model(_t_scaled, x_t)
         # Apply classifier-free guidance if required, by denoising again but without conditioning,
         # then blending the two predictions.
         if conditioning is not None and classifier_free_scale != 1:
             noise_cf = self.model(_t_scaled, x_t)
             noise = noise_cf + classifier_free_scale * (noise - noise_cf)
-        # Since `t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_t`.
-        coeff_x_t = expand_to_dims(self.sqrt_reciprocal_alpha_cumprods[_t], x_t)
-        coeff_noise = expand_to_dims(self.sqrt_reciprocal_alpha_cumprods_minus_one[_t], x_t)
-        x_hat_0 = coeff_x_t * x_t - coeff_noise * noise / coeff_x_t
+        # x_hat_0 is obtained from equation (15) of DDPM, https://arxiv.org/pdf/2006.11239.pdf
+        x_hat_0 = (x_t - torch.sqrt(1 - self.alpha_cumprods[_t]) * noise) / torch.sqrt(self.alpha_cumprods[_t])
         return x_hat_0, noise
-
-    def _posterior_mean_variance(
-        self, t: Timestep, x_0: TensorType["float"], x_t: TensorType["float"]
-    ) -> tuple[float, float]:
-        """
-        Obtain the mean and variance of q(x_t-1 | x_t, x_0)
-        """
-        # Since `t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_0`.
-        posterior_mean_x_0_coeff = expand_to_dims(self.posterior_mean_x_0_coeff[t], x_0)
-        posterior_mean_x_t_coeff = expand_to_dims(self.posterior_mean_x_t_coeff[t], x_0)
-        posterior_mean = posterior_mean_x_0_coeff * x_0 + posterior_mean_x_t_coeff * x_t
-        posterior_variance = self.posterior_variance[t]
-        return posterior_mean, posterior_variance
 
     def backward_sample(
         self,
@@ -177,15 +150,20 @@ class DDPM:
         :return: the sample of `x_t-1`, and the predicted `x_0`
         """
         # Predict x_0 using the model
-        x_hat_0, _ = self.predict_x_0_and_noise(t, x_t, conditioning, classifier_free_scale)
+        x_hat_0, pred_noise = self.predict_x_0_and_noise(
+            t=t, x_t=x_t, conditioning=conditioning, classifier_free_scale=classifier_free_scale
+        )
         # Apply classifier-free guidance, if conditioning is present
         if clip_predicted_x_0:
             x_hat_0 = torch.clip(x_hat_0, -1, 1)
-        # Obtain the posterior mean and variance, and obtain a sample of q(x_t-1 | x_t, x_0)
-        posterior_mean, posterior_variance = self._posterior_mean_variance(t, x_0=x_hat_0, x_t=x_t)
-        x_t_minus_one = posterior_mean
-        # Add noise to the sample, instead of taking a deterministic step
+        # Obtain x_t-1 from x_t and the noise prediction, Algorithm (2) of https://arxiv.org/pdf/2006.11239.pdf
+        # This is a sample of q(x_t-1 | x_t, x_0)
+        pred_noise_coeff = (1 - self.alphas[t]) / (torch.sqrt(1 - self.alpha_cumprods[t]))
+        x_t_minus_one = (1 / torch.sqrt(self.alphas[t])) * (x_t - pred_noise_coeff * pred_noise)
+        # Add noise to the sample, instead of taking a deterministic step.
+        # Variance is given by beta_hat_t in equation (7) and section (3.2).
         if add_noise:
             noise = torch.randn(*x_t.shape, device=x_t.device, generator=generator)
+            posterior_variance = ((1 - self.alpha_cumprods_prevs[t]) / (1 - self.alpha_cumprods[t])) * self.betas[t]
             x_t_minus_one += torch.sqrt(posterior_variance) * noise
         return x_t_minus_one, x_hat_0

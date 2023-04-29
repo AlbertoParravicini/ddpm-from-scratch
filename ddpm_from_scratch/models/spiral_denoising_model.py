@@ -3,6 +3,7 @@ from math import log
 import torch
 import torch.nn as nn
 from torchtyping import TensorType
+from typing import cast
 
 from ddpm_from_scratch.utils import B, N
 
@@ -37,7 +38,7 @@ class SinusoidalEncoding(nn.Module):
 
     def forward(self, t: TensorType["B", "int"]) -> TensorType["B", "N", "float"]:
         # Extract the encodings specified by the input timesteps
-        return self.pe[t]
+        return cast(torch.Tensor, self.pe)[t]
 
 
 class SpiralDenoisingModel(nn.Module):

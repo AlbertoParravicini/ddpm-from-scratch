@@ -1,9 +1,9 @@
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Sequence, TypeVar, Union
 
 import torch
 from torchtyping import TensorType
-from dataclasses import dataclass
-from abc import ABC, abstractmethod
 
 COOL_GREEN = "#57bb8a"
 
@@ -88,6 +88,8 @@ class LinearBetaSchedule(BetaSchedule):
     """
     Create a variance schedule (`beta schedule`) with linearly spaced values from a starting value
     to an ending value.
+    Default values are taken from Stable Diffusion.
+    The original DDPM paper used β_start=0.0001 and β_end=0.02.
     """
 
     β_start: float = 0.00085
@@ -166,7 +168,8 @@ def expand_to_dims(x: torch.Tensor, y: torch.Tensor):
     Expand the shape of `x` to match the number of dimensions of `y`, by adding
     size-1 dimensions to `x`. For example, if `x` has shape `[4]` and `y` has shape `[4, 2, 3]`,
     the expanded `x` has shape `[4, 1, 1]`.
-    This is useful to broadcast an array of values (`x`) over all the other dimensions of `y`.
+    This is useful to broadcast a vector of values (`x`) over all the other dimensions of `y`.
+    We use this function to add 1D conditioning embeddings over the 2D structure of an image in latent space.
 
     :param x: a tensor to expand
     :param y: tensor whose number of dimensions must be matched

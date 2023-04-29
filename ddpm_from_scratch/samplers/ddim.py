@@ -4,22 +4,21 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
-from ddpm_from_scratch.utils import B, T, Timestep, expand_to_dims, BetaSchedule
+from ddpm_from_scratch.utils import (B, BetaSchedule, T, Timestep,
+                                     expand_to_dims)
 
 
 class DDIM:
-    def __init__(
-        self,
-        betas: BetaSchedule,
-        model: nn.Module,
-        num_timesteps: int,
-        device: torch.device
-    ) -> None:
-        
+    def __init__(self, betas: BetaSchedule, model: nn.Module, num_timesteps: int, device: torch.device) -> None:
+        """
+        DDIM sampler from "Diffusion Denoising Implicit Models", Jiaming Song et al., 2020.
+        https://arxiv.org/pdf/2010.02502.pdf
+        """
+
         self.num_timesteps = num_timesteps
         # Store the number of steps on which the model is trained, since if we do inference on fewer timesteps
         # we need to multiply the inference timestep by the training timesteps / inference timesteps.
-        # That's because the model is trained with a time-step conditioning 
+        # That's because the model is trained with a time-step conditioning
         # that assumes the number of training timesteps.
         self._num_train_timesteps = betas.num_train_timesteps
 
@@ -49,7 +48,6 @@ class DDIM:
             self.model.to(device)
         except AttributeError:
             pass
-        
 
     def forward_sample(
         self, t: Timestep, x_0: TensorType["float"], noise: Optional[TensorType["float"]] = None
@@ -100,8 +98,9 @@ class DDIM:
         # The timestep used for conditioning must be scaled so that it matches the number of timesteps
         # used during training.
         _t_scaled = (_t * self._num_train_timesteps / self.num_timesteps).to(torch.long)
-        # Predict noise with our model.
-        noise = self.model(_t_scaled, x_t, c=conditioning)
+        ## Predict noise with our model. Pass conditioning only if not None.
+        # This allows supporting models that don't expect an additional conditioning
+        noise = self.model(_t_scaled, x_t, conditioning) if conditioning is not None else self.model(_t_scaled, x_t)
         # Apply classifier-free guidance if required, by denoising again but without conditioning,
         # then blending the two predictions.
         if conditioning is not None and classifier_free_scale != 1:
@@ -112,7 +111,6 @@ class DDIM:
         x_hat_0 = expand_to_dims(
             (x_t - noise * (1 - self.alpha_cumprods[_t]) ** 0.5) / (self.alpha_cumprods[_t] ** 0.5), x_t
         )
-        print(f"timwstep: {_t}, pred_original_sample: {x_hat_0.mean():.4f}, coeff={((1 - self.alpha_cumprods[_t]) ** 0.5).item():.4f}")
 
         return x_hat_0, noise
 

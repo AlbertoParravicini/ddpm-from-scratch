@@ -5,7 +5,8 @@ import torch.nn as nn
 from einops import rearrange  # type: ignore
 from torchtyping import TensorType
 
-from ddpm_from_scratch.utils import C1, C2, H1, H2, W1, W2, B, C, H, N, W, expand_to_dims
+from ddpm_from_scratch.utils import (C1, C2, H1, H2, W1, W2, B, C, H, N, W,
+                                     expand_to_dims)
 
 
 class EmbeddingProjection(nn.Module):

@@ -52,7 +52,13 @@ if __name__ == "__main__":
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=32)
 
     #%% Train the model, in the same way as before.
-    losses = train(dataloader=dataloader_train, sampler=ddpm, optimizer=optimizer, epochs=30, device=device)
+    losses = train(
+        dataloader=dataloader_train,
+        sampler=ddpm,
+        optimizer=optimizer,
+        epochs=30,
+        device=device,
+    )
 
     # Save the model
     torch.save(model.state_dict(), DATA_DIR / "unet.pt")
@@ -60,7 +66,12 @@ if __name__ == "__main__":
     #%% Plot the loss function
     plt.figure(figsize=(6, 6))
     plt.plot(np.arange(len(losses)), losses, lw=0.2)
-    plt.plot(np.arange(len(losses)), pd.Series(losses).rolling(100).mean(), lw=1, zorder=2)
+    plt.plot(
+        np.arange(len(losses)),
+        pd.Series(losses).rolling(100).mean(),
+        lw=1,
+        zorder=2,
+    )
     plt.xlim(0, len(losses))
     plt.ylim(0.0, 1.6)
     save_plot(PLOT_DIR, "2_3_loss_function.png", create_date_dir=False)

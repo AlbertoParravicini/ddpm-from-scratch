@@ -2,9 +2,7 @@ from typing import Sequence
 
 import torch
 import torch.nn as nn
-from torchtyping import TensorType
-
-from ddpm_from_scratch.utils import B, C, H, W
+from jaxtyping import Float, Integer
 
 
 class UNetSimple(nn.Module):
@@ -64,8 +62,10 @@ class UNetSimple(nn.Module):
         )
 
     def forward(
-        self, t: TensorType["B", "int"], x: TensorType["B", "C", "H", "W", "float"]
-    ) -> TensorType["B", "C", "H", "W", "float"]:
+        self,
+        t: Integer[torch.Tensor, " b"],
+        x: Float[torch.Tensor, "b c h w"],
+    ) -> Float[torch.Tensor, "b c h w"]:
         # Store the output of each layer
         xs = []
         # Downsample pass

@@ -38,8 +38,18 @@ class Config:
 # but in this simple example it doesn't matter.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 TRAINING_CONFIG: dict[str, Config] = {
-    "cuda": Config(num_training_epochs=32, batch_size=128, lr=1e-4, device=torch.device("cuda")),
-    "cpu": Config(num_training_epochs=3, batch_size=32, lr=1e-3, device=torch.device("cpu")),
+    "cuda": Config(
+        num_training_epochs=32,
+        batch_size=128,
+        lr=1e-4,
+        device=torch.device("cuda"),
+    ),
+    "cpu": Config(
+        num_training_epochs=3,
+        batch_size=32,
+        lr=1e-3,
+        device=torch.device("cpu"),
+    ),
 }
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
@@ -86,7 +96,12 @@ if __name__ == "__main__":
     #%% Plot the loss function
     plt.figure(figsize=(6, 6))
     plt.plot(np.arange(len(losses)), losses, lw=0.2)
-    plt.plot(np.arange(len(losses)), pd.Series(losses).rolling(100).mean(), lw=1, zorder=2)
+    plt.plot(
+        np.arange(len(losses)),
+        pd.Series(losses).rolling(100).mean(),
+        lw=1,
+        zorder=2,
+    )
     plt.xlim(0, len(losses))
     plt.ylim(0.4, 1.6)
     save_plot(PLOT_DIR, "2_2_loss_function.png", create_date_dir=False)

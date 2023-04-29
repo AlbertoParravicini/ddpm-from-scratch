@@ -1,0 +1,17 @@
+[flake8]
+
+# see https://flake8.pycqa.org/en/latest/user/error-codes.html
+ignore =
+    # E203 - whitespace before ':' (in conflict with Black)
+    E203,
+
+    # W503 - line break before binary operator (in conflict with Black)
+    W503,
+
+    # E265 - Allow #%% comments
+    E265
+
+    # E722 - Compatibility with Jaxtyping annotations, https://github.com/google/jaxtyping/blob/main/FAQ.md
+    F722
+
+max-line-length = 120

@@ -1,8 +1,7 @@
+import torch
 import torch.nn as nn
 from einops import rearrange
-from torchtyping import TensorType
-
-from ddpm_from_scratch.utils import B, C, H, M, N, W
+from jaxtyping import Float
 
 
 class LeNet5(nn.Module):
@@ -31,8 +30,8 @@ class LeNet5(nn.Module):
         self.fc_3 = nn.Linear(84, num_classes)
 
     def forward(
-        self, x: TensorType["B", "C", "H", "W", "float"]
-    ) -> tuple[TensorType["B", "N", "float"], TensorType["B", "M", "float"]]:
+        self, x: Float[torch.Tensor, "b c h w"]
+    ) -> tuple[Float[torch.Tensor, "b n"], Float[torch.Tensor, "b m"]]:
         """
         Forward pass of LeNet5. Since we are interested in using this network for FID,
         we also return the second-to-last layer activations.

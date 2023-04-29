@@ -36,8 +36,18 @@ class Config:
 # but in this simple example it doesn't matter.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 TRAINING_CONFIG: dict[str, Config] = {
-    "cuda": Config(num_training_steps=80000, batch_size=128, lr=1e-3, device=torch.device("cuda")),
-    "cpu": Config(num_training_steps=20000, batch_size=32, lr=1e-3, device=torch.device("cpu")),
+    "cuda": Config(
+        num_training_steps=80000,
+        batch_size=128,
+        lr=1e-3,
+        device=torch.device("cuda"),
+    ),
+    "cpu": Config(
+        num_training_steps=20000,
+        batch_size=32,
+        lr=1e-3,
+        device=torch.device("cpu"),
+    ),
 }
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
@@ -108,7 +118,12 @@ if __name__ == "__main__":
     #%% Plot the loss function
     plt.figure(figsize=(6, 6))
     plt.plot(list(range(num_training_steps)), losses, lw=0.2)
-    plt.plot(list(range(num_training_steps)), pd.Series(losses).rolling(100).mean(), lw=1, zorder=2)
+    plt.plot(
+        list(range(num_training_steps)),
+        pd.Series(losses).rolling(100).mean(),
+        lw=1,
+        zorder=2,
+    )
     plt.xlim(0, num_training_steps)
     save_plot(PLOT_DIR, "1_3_loss_function.png", create_date_dir=False)
 
@@ -132,12 +147,24 @@ if __name__ == "__main__":
                 X_noisy_cpu = X_noisy.cpu().numpy()  # Always move to CPU for plotting
                 X_0_cpu = X_0.cpu().numpy()
                 ax[0].scatter(
-                    X_noisy_cpu[:, 0], X_noisy_cpu[:, 1], color=PALETTE_1[-2], alpha=0.8, edgecolor="#2f2f2f", lw=0.5
+                    X_noisy_cpu[:, 0],
+                    X_noisy_cpu[:, 1],
+                    color=PALETTE_1[-2],
+                    alpha=0.8,
+                    edgecolor="#2f2f2f",
+                    lw=0.5,
                 )
                 ax[0].set_title("Noise becoming a spiral, " + r"$q(x_{t - 1} | x_t, \hat{x}_0), t=$" + f"{timestep}")
                 ax[0].set_xlim((-1, 1))
                 ax[0].set_ylim((-1, 1))
-                ax[1].scatter(X_0_cpu[:, 0], X_0_cpu[:, 1], color=COOL_GREEN, alpha=0.8, edgecolor="#2f2f2f", lw=0.5)
+                ax[1].scatter(
+                    X_0_cpu[:, 0],
+                    X_0_cpu[:, 1],
+                    color=COOL_GREEN,
+                    alpha=0.8,
+                    edgecolor="#2f2f2f",
+                    lw=0.5,
+                )
                 ax[1].set_title("Prediction of " + r"$\hat{x}_0, t=$" + f"{timestep}")
                 ax[1].set_xlim((-1, 1))
                 ax[1].set_ylim((-1, 1))

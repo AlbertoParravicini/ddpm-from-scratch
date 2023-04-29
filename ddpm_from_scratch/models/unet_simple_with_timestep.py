@@ -1,11 +1,11 @@
-from typing import Sequence
+from typing import Sequence, cast
 
 import torch
 import torch.nn as nn
-from torchtyping import TensorType
+from jaxtyping import Float, Integer
 
 from ddpm_from_scratch.models.spiral_denoising_model import SinusoidalEncoding
-from ddpm_from_scratch.utils import B, C, H, W, expand_to_dims
+from ddpm_from_scratch.utils import expand_to_dims
 
 
 class TimestepEmbedding(nn.Module):
@@ -18,8 +18,8 @@ class TimestepEmbedding(nn.Module):
             nn.Linear(hidden_channels, output_channels),
         )
 
-    def forward(self, t: TensorType["B", "int"]) -> TensorType["B", "C"]:
-        return self.timestep_embedding(t)
+    def forward(self, t: Integer[torch.Tensor, " b"]) -> Integer[torch.Tensor, "b c"]:
+        return cast(torch.Tensor, self.timestep_embedding(t))
 
 
 class UNetSimpleWithTimestep(nn.Module):
@@ -89,8 +89,10 @@ class UNetSimpleWithTimestep(nn.Module):
         )
 
     def forward(
-        self, t: TensorType["B", "int"], x: TensorType["B", "C", "H", "W", "float"]
-    ) -> TensorType["B", "C", "H", "W", "float"]:
+        self,
+        t: Integer[torch.Tensor, " b"],
+        x: Float[torch.Tensor, "b c h w"],
+    ) -> Float[torch.Tensor, "b c h w"]:
         # Store the output of each layer
         xs = []
         # Downsample pass

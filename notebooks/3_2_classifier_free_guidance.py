@@ -6,9 +6,8 @@ from segretini_matplottini.utils.plot_utils import reset_plot_style
 
 from ddpm_from_scratch.engines.mnist import MnistInferenceGifCallback, get_one_element_per_digit, inference, load_mnist
 from ddpm_from_scratch.models.unet_conditioned_v2 import UNetConditioned
-from ddpm_from_scratch.samplers.ddim import DDIM
 from ddpm_from_scratch.samplers.ddpm import DDPM
-from ddpm_from_scratch.utils import CosineBetaSchedule, ScaledLinearBetaSchedule
+from ddpm_from_scratch.utils import ScaledLinearBetaSchedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -31,7 +30,7 @@ if __name__ == "__main__":
     # Define the denoising model.
     model = UNetConditioned(num_classes=10, hidden_channels=24)
     # Create the sampler.
-    ddpm = DDIM(betas, model, device=device, num_timesteps=num_timesteps)
+    ddpm = DDPM(betas, model, device=device, num_timesteps=num_timesteps)
 
     # Load the MNIST dataset.
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=8)

@@ -3,10 +3,10 @@ from typing import Sequence
 import torch
 import torch.nn as nn
 from einops import rearrange
-from torchtyping import TensorType
+from jaxtyping import Float, Integer
 
 from ddpm_from_scratch.models.unet_simple_with_timestep import TimestepEmbedding
-from ddpm_from_scratch.utils import C1, C2, H1, H2, W1, W2, B, C, H, W, expand_to_dims
+from ddpm_from_scratch.utils import expand_to_dims
 
 
 class ResBlock(nn.Module):
@@ -20,17 +20,27 @@ class ResBlock(nn.Module):
         super().__init__()
         # Following the following implementation of ResBlock, we apply GroupNorm followed by non-linearity,
         # and finally a 2D convolution. This sequence is referred to as `ConvBlock`.
-        # Link: https://github.com/openai/guided-diffusion/blob/22e0df8183507e13a7813f8d38d51b072ca1e67c/guided_diffusion/unet.py#L182
+        # Link: https://github.com/openai/guided-diffusion/blob/22e0df8183507e13a7813f8d38d51b072ca1e67c/guided_diffusion/unet.py#L182  # noqa: E501
         self.convblock_1 = nn.Sequential(
             nn.GroupNorm(num_groups=8, num_channels=in_channels),
             nn.SiLU(),
-            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, padding=1),
+            nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=3,
+                padding=1,
+            ),
         )
         # Same as the first ConvBlock. In this case, the number of layers is not changed.
         self.convblock_2 = nn.Sequential(
             nn.GroupNorm(num_groups=8, num_channels=out_channels),
             nn.SiLU(),
-            nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, padding=1),
+            nn.Conv2d(
+                in_channels=out_channels,
+                out_channels=out_channels,
+                kernel_size=3,
+                padding=1,
+            ),
         )
         self.timestep_embedding = TimestepEmbedding(out_channels)
         # Specify if this ResBlock will leave the spatial resolution unchanged,
@@ -48,22 +58,38 @@ class ResBlock(nn.Module):
             self.skip_transform_spatial = nn.UpsamplingBilinear2d(scale_factor=2)
         elif down:
             self.rescale = nn.Conv2d(
-                in_channels=out_channels, out_channels=out_channels, kernel_size=3, padding=1, stride=2
+                in_channels=out_channels,
+                out_channels=out_channels,
+                kernel_size=3,
+                padding=1,
+                stride=2,
             )
             self.skip_transform_spatial = nn.Conv2d(
-                in_channels=out_channels, out_channels=out_channels, kernel_size=3, padding=1, stride=2
+                in_channels=out_channels,
+                out_channels=out_channels,
+                kernel_size=3,
+                padding=1,
+                stride=2,
             )
         else:
             self.rescale = nn.Identity()
             self.skip_transform_spatial = nn.Identity()
         self.skip_transform = nn.Sequential(
-            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, padding=0, stride=1),
+            nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=1,
+                padding=0,
+                stride=1,
+            ),
             self.skip_transform_spatial,
         )
 
     def forward(
-        self, t: TensorType["B", "int"], x: TensorType["B", "C1", "H1", "W1", "float"]
-    ) -> TensorType["B", "C2", "H2", "W2", "float"]:
+        self,
+        t: Integer[torch.Tensor, " b"],
+        x: Float[torch.Tensor, "b c1 h1 w1"],
+    ) -> Float[torch.Tensor, "b c2 h2 w2"]:
         h = self.convblock_1(x)  # First ConvBlock, from C1 to C2.
         t = expand_to_dims(self.timestep_embedding(t), x)  # Replicate time embedding to H1 and W1.
         h = h + t  # Add timestep embedding.
@@ -77,13 +103,27 @@ class MultiheadAttention(nn.Module):
     def __init__(self, channels: int) -> None:
         super().__init__()
         self.norm = nn.GroupNorm(num_groups=8, num_channels=channels)
-        self.conv_1 = nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, padding=1, stride=1)
+        self.conv_1 = nn.Conv2d(
+            in_channels=channels,
+            out_channels=channels,
+            kernel_size=3,
+            padding=1,
+            stride=1,
+        )
         self.attention = nn.MultiheadAttention(channels, num_heads=4, batch_first=True)
-        self.conv_2 = nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, padding=1, stride=1)
+        self.conv_2 = nn.Conv2d(
+            in_channels=channels,
+            out_channels=channels,
+            kernel_size=3,
+            padding=1,
+            stride=1,
+        )
 
     def forward(
-        self, t: TensorType["B", "int"], x: TensorType["B", "C", "H", "W", "float"]
-    ) -> TensorType["B", "C", "H", "W", "float"]:
+        self,
+        t: Integer[torch.Tensor, " b"],
+        x: Float[torch.Tensor, "b c h w"],
+    ) -> Float[torch.Tensor, "b c h w"]:
         # Group together the spatial dimensions, and perform self attention by aggregating channels
         h, w = x.shape[-2:]
         x = self.norm(x)
@@ -99,7 +139,13 @@ class MultiheadAttention(nn.Module):
 
 
 class UpDownBlock(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, down: bool = False, up: bool = False) -> None:
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        down: bool = False,
+        up: bool = False,
+    ) -> None:
         super().__init__()
         self.attention_1 = MultiheadAttention(in_channels)
         self.resnet = ResBlock(in_channels=in_channels, out_channels=out_channels, down=down, up=up)
@@ -107,8 +153,10 @@ class UpDownBlock(nn.Module):
         self.timestep_embedding = TimestepEmbedding(out_channels)
 
     def forward(
-        self, t: TensorType["B", "int"], x: TensorType["B", "C1", "H1", "W1", "float"]
-    ) -> TensorType["B", "C2", "H2", "W2", "float"]:
+        self,
+        t: Integer[torch.Tensor, " b"],
+        x: Float[torch.Tensor, "b c1 h1 w1"],
+    ) -> Float[torch.Tensor, "b c2 h2 w2"]:
         x = self.attention_1(t, x) + x
         x = self.resnet(t, x)
         x = self.attention_2(t, x) + x
@@ -137,7 +185,10 @@ class UNet(nn.Module):
         self._channels = [hidden_channels * c for c in channel_multipliers]
         # Initial layer, to project the number of dimensions to the number of hidden channels,
         self.initial_conv = nn.Conv2d(
-            in_channels=in_channels, out_channels=hidden_channels * channel_multipliers[0], kernel_size=3, padding=1
+            in_channels=in_channels,
+            out_channels=hidden_channels * channel_multipliers[0],
+            kernel_size=3,
+            padding=1,
         )
         # Downsample layers. At each layer, we halve the resolution,
         # and increase the channel count by the specified factor.
@@ -147,9 +198,15 @@ class UNet(nn.Module):
         # Middle layer. Self-attention.
         self.middle_layers = nn.ModuleList(
             [
-                ResBlock(in_channels=self._channels[-1], out_channels=self._channels[-1]),
+                ResBlock(
+                    in_channels=self._channels[-1],
+                    out_channels=self._channels[-1],
+                ),
                 MultiheadAttention(self._channels[-1]),
-                ResBlock(in_channels=self._channels[-1], out_channels=self._channels[-1]),
+                ResBlock(
+                    in_channels=self._channels[-1],
+                    out_channels=self._channels[-1],
+                ),
             ]
         )
         # Upsample layers. At each layer, we double the resolution
@@ -162,12 +219,17 @@ class UNet(nn.Module):
             self.upsample_layers += [UpDownBlock(self._channels[i + 1] * 2, self._channels[i], up=True)]
         # Final layer, return the original amount of channels.
         self.final_conv = nn.Conv2d(
-            in_channels=hidden_channels * channel_multipliers[0], out_channels=in_channels, kernel_size=3, padding=1
+            in_channels=hidden_channels * channel_multipliers[0],
+            out_channels=in_channels,
+            kernel_size=3,
+            padding=1,
         )
 
     def forward(
-        self, t: TensorType["B", "int"], x: TensorType["B", "C", "H", "W", "float"]
-    ) -> TensorType["B", "C", "H", "W", "float"]:
+        self,
+        t: Integer[torch.Tensor, " b"],
+        x: Float[torch.Tensor, "b c h w"],
+    ) -> Float[torch.Tensor, "b c h w"]:
         # Store the output of each layer.
         xs = []
         # Initial convolution layer.

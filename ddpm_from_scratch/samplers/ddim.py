@@ -1,14 +1,20 @@
 from typing import Optional
 
 import torch
+from jaxtyping import Float
 from torch import nn
-from torchtyping import TensorType
 
-from ddpm_from_scratch.utils import B, BetaSchedule, T, Timestep, expand_to_dims
+from ddpm_from_scratch.utils import BetaSchedule, Timestep, expand_to_dims
 
 
 class DDIM:
-    def __init__(self, betas: BetaSchedule, model: nn.Module, num_timesteps: int, device: torch.device) -> None:
+    def __init__(
+        self,
+        betas: BetaSchedule,
+        model: nn.Module,
+        num_timesteps: int,
+        device: torch.device,
+    ) -> None:
         """
         DDIM sampler from "Diffusion Denoising Implicit Models", Jiaming Song et al., 2020.
         https://arxiv.org/pdf/2010.02502.pdf
@@ -35,7 +41,10 @@ class DDIM:
 
         # α_t-1
         self.alpha_cumprods_prev = torch.concatenate(
-            [torch.tensor([1.0], device=self.alpha_cumprods.device), self.alpha_cumprods[:-1]]
+            [
+                torch.tensor([1.0], device=self.alpha_cumprods.device),
+                self.alpha_cumprods[:-1],
+            ]
         )
 
         ################################
@@ -51,10 +60,10 @@ class DDIM:
     def forward_sample(
         self,
         t: Timestep,
-        x_0: TensorType["float"],
-        noise: Optional[TensorType["float"]] = None,
+        x_0: Float[torch.Tensor, "b ..."],
+        noise: Optional[Float[torch.Tensor, "b ..."]] = None,
         generator: Optional[torch.Generator] = None,
-    ) -> tuple[TensorType["float"], TensorType["float"]]:
+    ) -> tuple[Float[torch.Tensor, "b ..."], Float[torch.Tensor, "b ..."]]:
         """
         Compute `q(x_i | x_0)`, as a sample of a Gaussian process with equation
         ```
@@ -77,10 +86,10 @@ class DDIM:
     def predict_x_0_and_noise(
         self,
         t: Timestep,
-        x_t: TensorType["float"],
-        conditioning: Optional[TensorType["float"]] = None,
+        x_t: Float[torch.Tensor, "b ..."],
+        conditioning: Optional[Float[torch.Tensor, "b ..."]] = None,
         classifier_free_scale: float = 1,
-    ) -> tuple[TensorType["float"], TensorType["float"]]:
+    ) -> tuple[Float[torch.Tensor, "b ..."], Float[torch.Tensor, "b ..."]]:
         """
         Compute a sample of the backward process `q(x_0 | x_t)`, by denoising `x_t` using a model,
         and return both the sample and the predicted noise.
@@ -103,7 +112,7 @@ class DDIM:
         # The timestep used for conditioning must be scaled so that it matches the number of timesteps
         # used during training.
         _t_scaled = (_t * self._num_train_timesteps / self.num_timesteps).to(torch.long)
-        ## Predict noise with our model. Pass conditioning only if not None.
+        # Predict noise with our model. Pass conditioning only if not None.
         # This allows supporting models that don't expect an additional conditioning
         noise = self.model(_t_scaled, x_t, conditioning) if conditioning is not None else self.model(_t_scaled, x_t)
         # Apply classifier-free guidance if required, by denoising again but without conditioning,
@@ -114,7 +123,8 @@ class DDIM:
         # Equation (12) of DDIM (https://arxiv.org/pdf/2010.02502.pdf), "predicted x_0".
         # Since `_t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_t`.
         x_hat_0 = expand_to_dims(
-            (x_t - noise * (1 - self.alpha_cumprods[_t]) ** 0.5) / (self.alpha_cumprods[_t] ** 0.5), x_t
+            (x_t - noise * (1 - self.alpha_cumprods[_t]) ** 0.5) / (self.alpha_cumprods[_t] ** 0.5),
+            x_t,
         )
 
         return x_hat_0, noise
@@ -122,12 +132,12 @@ class DDIM:
     def backward_sample(
         self,
         t: Timestep,
-        x_t: TensorType["float"],
-        conditioning: Optional[TensorType["float"]] = None,
+        x_t: Float[torch.Tensor, "b ..."],
+        conditioning: Optional[Float[torch.Tensor, "b ..."]] = None,
         classifier_free_scale: float = 1,
         clip_predicted_x_0: bool = True,
         add_noise: bool = False,
-    ) -> tuple[TensorType["float"], TensorType["float"]]:
+    ) -> tuple[Float[torch.Tensor, "b ..."], Float[torch.Tensor, "b ..."]]:
         """
         Obtain a sample of the backward process `q(x_t-1 | x_t, x_0)`,
         by predicting `x_0` using a denoising model, and then taking a step of the backward process.
@@ -142,7 +152,10 @@ class DDIM:
         """
         # Predict x_0 using the model.
         x_hat_0, pred_noise = self.predict_x_0_and_noise(
-            t=t, x_t=x_t, conditioning=conditioning, classifier_free_scale=classifier_free_scale
+            t=t,
+            x_t=x_t,
+            conditioning=conditioning,
+            classifier_free_scale=classifier_free_scale,
         )
         if clip_predicted_x_0:
             x_hat_0 = torch.clip(x_hat_0, -1, 1)

@@ -67,7 +67,12 @@ if __name__ == "__main__":
     #%% Plot the loss function
     plt.figure(figsize=(6, 6))
     plt.plot(np.arange(len(losses)), losses, lw=0.2)
-    plt.plot(np.arange(len(losses)), pd.Series(losses).rolling(100).mean(), lw=1, zorder=2)
+    plt.plot(
+        np.arange(len(losses)),
+        pd.Series(losses).rolling(100).mean(),
+        lw=1,
+        zorder=2,
+    )
     plt.xlim(0, len(losses))
     plt.ylim(0.0, 1.6)
     save_plot(PLOT_DIR, "3_1_loss_function.png", create_date_dir=False)

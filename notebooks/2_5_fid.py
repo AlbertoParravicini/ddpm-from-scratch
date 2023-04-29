@@ -1,14 +1,14 @@
 from pathlib import Path
 
 import torch
-from torchtyping import TensorType
+from jaxtyping import Float
 from tqdm import tqdm
 
 from ddpm_from_scratch.engines.mnist import inference, load_mnist
 from ddpm_from_scratch.models.lenet5 import LeNet5
 from ddpm_from_scratch.models.unet import UNet
 from ddpm_from_scratch.samplers.ddpm import DDPM
-from ddpm_from_scratch.utils import B, CosineBetaSchedule, N, gaussian_frechet_distance
+from ddpm_from_scratch.utils import CosineBetaSchedule, gaussian_frechet_distance
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -27,13 +27,13 @@ if __name__ == "__main__":
 
     # Compute features for training and test set.
     with torch.inference_mode():
-        features_train_list: list[TensorType["B", "N"]] = []
+        features_train_list: list[Float[torch.Tensor, "b n"]] = []
         for (x, _) in tqdm(dataloader_train, desc="lenet5 - training"):
             x = x.to(device)
             f, _ = lenet5(x)
             features_train_list += [f]
         features_train = torch.concat(features_train_list, dim=0)
-        features_test_list: list[TensorType["B", "N"]] = []
+        features_test_list: list[Float[torch.Tensor, "b n"]] = []
         for (x, _) in tqdm(dataloader_test, desc="lenet5 - test"):
             x = x.to(device)
             f, _ = lenet5(x)
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     #%% Compute test-random FID, as upper bound.
     # To estimate the FID of noise, create random noise, and compute its LeNet5 features.
     with torch.inference_mode():
-        features_rand_list: list[TensorType["B", "N"]] = []
+        features_rand_list: list[Float[torch.Tensor, "b n"]] = []
         for (x, _) in tqdm(dataloader_test, desc="lenet5 - random"):
             x = x.to(device)
             f, _ = lenet5(torch.rand_like(x))
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     ddpm = DDPM(betas, unet, num_timesteps=1000, device=device)
 
     with torch.inference_mode():
-        features_ddpm_list: list[TensorType["B", "N"]] = []
+        features_ddpm_list: list[Float[torch.Tensor, "b n"]] = []
         for (x, _) in tqdm(dataloader_test, desc="lenet5 - ddpm"):
             x = x.to(device)
             x_denoised = inference(x=torch.rand_like(x), sampler=ddpm, verbose=False)

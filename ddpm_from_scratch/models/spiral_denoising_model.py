@@ -1,11 +1,8 @@
 from math import log
-from typing import cast
 
 import torch
 import torch.nn as nn
-from torchtyping import TensorType
-
-from ddpm_from_scratch.utils import B, N
+from jaxtyping import Float, Integer
 
 
 class SinusoidalEncoding(nn.Module):
@@ -39,7 +36,7 @@ class SinusoidalEncoding(nn.Module):
         # that self.pe is a tensor after it is registered as buffer
         # self.pe = cast(torch.Tensor, pe)
 
-    def forward(self, t: TensorType["B", "int"]) -> TensorType["B", "N", "float"]:
+    def forward(self, t: Integer[torch.Tensor, " b"]) -> Float[torch.Tensor, "b n"]:
         # Extract the encodings specified by the input timesteps
         return self.pe[t]  # type: ignore
 
@@ -58,9 +55,7 @@ class SpiralDenoisingModel(nn.Module):
         self.dense_3 = nn.Linear(32, 32)
         self.dense_4 = nn.Linear(32, 2)
 
-    def forward(
-        self, t: TensorType["B", "int"], x: TensorType["B", "N", "2", "float"]
-    ) -> TensorType["B", "N", "2", "float"]:
+    def forward(self, t: Integer[torch.Tensor, " b"], x: Float[torch.Tensor, "b n 2"]) -> Float[torch.Tensor, "b n 2"]:
         # If x is given without batch size, we remove it at the end
         x_shape_len = len(x.shape)
         time_embedding = self.embedding(t).unsqueeze(1)

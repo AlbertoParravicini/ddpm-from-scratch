@@ -2,15 +2,13 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from diffusers import DDIMScheduler, DDPMScheduler  # type: ignore
+from diffusers import DDPMScheduler  # type: ignore
 from segretini_matplottini.utils.plot_utils import reset_plot_style
 from tqdm import tqdm
 
-from ddpm_from_scratch.engines.mnist import MnistInferenceGifCallback, get_one_element_per_digit, inference, load_mnist
-from ddpm_from_scratch.models.unet_conditioned_v2 import UNetConditioned
+from ddpm_from_scratch.engines.mnist import MnistInferenceGifCallback, get_one_element_per_digit, load_mnist
 from ddpm_from_scratch.models.unet_simple import UNetSimple
 from ddpm_from_scratch.samplers.ddim import DDIM
-from ddpm_from_scratch.samplers.ddpm import DDPM
 from ddpm_from_scratch.utils import ScaledLinearBetaSchedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
@@ -59,10 +57,14 @@ if __name__ == "__main__":
     scale = 9
     ddim.set_timesteps(num_timesteps)
     ddim.timesteps = ddim.timesteps.to(x.device)
-    callback = MnistInferenceGifCallback(filename=PLOT_DIR / f"3_4_inference_diffusers.gif")
+    callback = MnistInferenceGifCallback(filename=PLOT_DIR / "3_4_inference_diffusers.gif")
     noise = torch.randn(*x.shape, device=x.device)
     x_noisy_fake = ddpm_fake.forward_sample(50 - 1, x, noise=noise)[0]
-    x_noisy = ddim.add_noise(x, noise=noise, timesteps=torch.tensor(1000 - 1, device=x.device, dtype=torch.long))
+    x_noisy = ddim.add_noise(
+        x,
+        noise=noise,
+        timesteps=torch.tensor(1000 - 1, device=x.device, dtype=torch.long),
+    )
     model.eval()
     x_t = x_noisy.half()
     for t in tqdm(ddim.timesteps, desc="inference"):

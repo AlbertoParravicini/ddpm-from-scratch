@@ -8,7 +8,7 @@ from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 from torch.nn.functional import binary_cross_entropy_with_logits
 from tqdm import tqdm
 
-from ddpm_from_scratch.engines.mnist import get_one_element_per_digit, inference, load_mnist
+from ddpm_from_scratch.engines.mnist import load_mnist
 from ddpm_from_scratch.models.lenet5 import LeNet5
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
@@ -65,7 +65,7 @@ if __name__ == "__main__":
                     bar_suffix |= {"val_errors": val_errors_per_epoch[-1]}
                 progress_bar_step.set_postfix(bar_suffix)
         # Do a validation step
-        val_progress_bar_step = tqdm(dataloader_test, desc=f"validation")
+        val_progress_bar_step = tqdm(dataloader_test, desc="validation")
         val_losses: list[float] = []
         val_errors: list[float] = []
         for i, (x, y) in enumerate(val_progress_bar_step):
@@ -83,7 +83,12 @@ if __name__ == "__main__":
     #%% Plot the training loss function
     plt.figure(figsize=(6, 6))
     plt.plot(np.arange(len(losses)), losses, lw=0.2)
-    plt.plot(np.arange(len(losses)), pd.Series(losses).rolling(100).mean(), lw=1, zorder=2)
+    plt.plot(
+        np.arange(len(losses)),
+        pd.Series(losses).rolling(100).mean(),
+        lw=1,
+        zorder=2,
+    )
     plt.xlim(0, len(losses))
     save_plot(PLOT_DIR, "2_4_loss_function.png", create_date_dir=False)
     # Print a summary

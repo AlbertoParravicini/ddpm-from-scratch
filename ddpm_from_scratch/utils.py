@@ -1,36 +1,26 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Sequence, TypeVar, Union
+from typing import Union, cast
 
 import torch
-from torchtyping import TensorType
+from jaxtyping import Float, Integer
 
 COOL_GREEN = "#57bb8a"
 
-B = TypeVar("B")  # Batch size
-C = TypeVar("C")  # Number of color channels
-W = TypeVar("W")  # Width
-H = TypeVar("H")  # Height
-N = TypeVar("N")  # Generic size
-M = TypeVar("M")  # Generic size
-T = TypeVar("T")  # Timesteps
-C1 = TypeVar("C1")  # Number of color channels
-W1 = TypeVar("W1")  # Width
-H1 = TypeVar("H1")  # Height
-C2 = TypeVar("C2")  # Number of color channels
-W2 = TypeVar("W2")  # Width
-H2 = TypeVar("H2")  # Height
 
-Timestep = Union[int, list[int], TensorType["B", "int"]]
+Timestep = Union[int, list[int], Integer[torch.Tensor, "*#b *#t"]]
 
 
-def univariate_gaussian_sample(n: int, μ: float = 0, σ: float = 1) -> TensorType["N", "float"]:
+def univariate_gaussian_sample(n: int, μ: float = 0, σ: float = 1) -> Float[torch.Tensor, " n"]:
     return μ + σ * torch.randn(n)
 
 
 def make_spiral(
-    n: int, start: float = 1.5 * torch.pi, end: float = 4.5 * torch.pi, normalize: bool = False
-) -> TensorType[2, "N"]:
+    n: int,
+    start: float = 1.5 * torch.pi,
+    end: float = 4.5 * torch.pi,
+    normalize: bool = False,
+) -> Float[torch.Tensor, "n 2"]:
     """
     Create a spiral with the specified number of samples. The starting point has angle `start`,
     defined starting from 0 * np.pi with radius `start`, while the ending angle and radius defined by `end`,
@@ -76,7 +66,7 @@ class BetaSchedule(ABC):
     """
 
     @abstractmethod
-    def betas(self, num_timesteps: int = 1000) -> TensorType["T"]:
+    def betas(self, num_timesteps: int = 1000) -> Float[torch.Tensor, " t"]:
         """
         Generate a beta schedule with the specified number of steps.
         """
@@ -101,7 +91,7 @@ class LinearBetaSchedule(BetaSchedule):
     Ending value of the beta schedule, at timestep T
     """
 
-    def betas(self, num_timesteps: int = 1000) -> TensorType["T"]:
+    def betas(self, num_timesteps: int = 1000) -> Float[torch.Tensor, " t"]:
         scale = self.num_train_timesteps / num_timesteps
         β_start = self.β_start * scale
         β_end = self.β_end * scale
@@ -128,13 +118,13 @@ class ScaledLinearBetaSchedule(BetaSchedule):
     Ending value of the beta schedule, at timestep T
     """
 
-    def betas(self, num_timesteps: int = 1000) -> TensorType["T"]:
+    def betas(self, num_timesteps: int = 1000) -> Float[torch.Tensor, " t"]:
         β_start = self.β_start**0.5
         β_end = self.β_end**0.5
         scale = (self.num_train_timesteps / num_timesteps) ** 0.5
         β_start *= scale
         β_end *= scale
-        return torch.linspace(β_start, β_end, num_timesteps) ** 2
+        return cast(torch.Tensor, torch.linspace(β_start, β_end, num_timesteps) ** 2)
 
 
 @dataclass
@@ -151,7 +141,7 @@ class CosineBetaSchedule(BetaSchedule):
     while for large `s` it will decrease faster to 0.
     """
 
-    def betas(self, num_timesteps: int = 1000) -> TensorType["T"]:
+    def betas(self, num_timesteps: int = 1000) -> Float[torch.Tensor, " t"]:
         t = torch.arange(0, num_timesteps + 1)
         # α_hat are defined so that α is 1 at timestep 0, 0 at timestep `num_timestep`,
         # and the progression follows a cosine curve, with a smoothing controlled by `s`.
@@ -160,7 +150,7 @@ class CosineBetaSchedule(BetaSchedule):
         α_hat = α_hat / α_hat[0]  # Ensure that α_hat[0] is 1
         β = 1 - α_hat[1:] / α_hat[:-1]  # α = α_hat[1:] / α_hat[:-1], β = 1 - α
         β = torch.clamp(β, 0, 0.999)
-        return β
+        return cast(torch.Tensor, β)
 
 
 def expand_to_dims(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -179,8 +169,11 @@ def expand_to_dims(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
 
 def gaussian_frechet_distance(
-    μ_1: TensorType["N"], Σ_1: TensorType["N", "N"], μ_2: TensorType["N"], Σ_2: TensorType["N", "N"]
-) -> TensorType[1]:
+    μ_1: Float[torch.Tensor, " n"],
+    Σ_1: Float[torch.Tensor, "n n"],
+    μ_2: Float[torch.Tensor, " n"],
+    Σ_2: Float[torch.Tensor, "n n"],
+) -> Float[torch.Tensor, "1"]:
     """
     Frechet Inception Distance (FID) between two multivariate Gaussian distributions.
     It measures how different the two distributions are: intuitively, it looks for the difference of means,

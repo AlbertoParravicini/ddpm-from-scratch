@@ -11,7 +11,7 @@ readme = "README.md"
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = ">= 3.9"
+python = ">=3.9,<4.0"
 black = "^22.8"
 isort = "^5"
 spyder-kernels = ">2.3.0, < 2.4.0"
@@ -19,12 +19,13 @@ imageio = "^2.23"
 torch = ">=2"
 segretini_matplottini = { git = "https://github.com/AlbertoParravicini/segretini-matplottini" }
 torchvision = ">=0.15"
-torchtyping = "^0.1.4"
 tqdm = "^4.64.1"
 einops = "^0.6.0"
 mypy = "^1.2.0"
 pandas-stubs = "^2.0.0.230412"
 types-tqdm = "^4.65.0.1"
+jaxtyping = "^0.2.15"
+flake8 = "^6.0.0"
 
 [tool.setuptools]
 packages = ["ddpm_from_scratch"]

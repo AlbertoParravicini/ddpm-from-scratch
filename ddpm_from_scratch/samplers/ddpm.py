@@ -1,10 +1,10 @@
-from typing import Any, Optional
+from typing import Optional
 
 import torch
+from jaxtyping import Float
 from torch import nn
-from torchtyping import TensorType
 
-from ddpm_from_scratch.utils import B, BetaSchedule, T, Timestep, expand_to_dims
+from ddpm_from_scratch.utils import BetaSchedule, Timestep, expand_to_dims
 
 
 class DDPM:
@@ -40,7 +40,10 @@ class DDPM:
         #########################################################
 
         self.alpha_cumprods_prevs = torch.concatenate(
-            [torch.tensor([1.0], device=self.alpha_cumprods.device), self.alpha_cumprods[:-1]]
+            [
+                torch.tensor([1.0], device=self.alpha_cumprods.device),
+                self.alpha_cumprods[:-1],
+            ]
         )
 
         ################################
@@ -56,10 +59,10 @@ class DDPM:
     def forward_sample(
         self,
         t: Timestep,
-        x_0: TensorType["float"],
-        noise: Optional[TensorType["float"]] = None,
+        x_0: Float[torch.Tensor, "b ..."],
+        noise: Optional[Float[torch.Tensor, "b ..."]] = None,
         generator: Optional[torch.Generator] = None,
-    ) -> tuple[TensorType["float"], TensorType["float"]]:
+    ) -> tuple[Float[torch.Tensor, "b ..."], Float[torch.Tensor, "b ..."]]:
         """
         Compute `q(x_i | x_0)`, as a sample of a Gaussian process with equation
         ```
@@ -82,10 +85,10 @@ class DDPM:
     def predict_x_0_and_noise(
         self,
         t: Timestep,
-        x_t: TensorType["float"],
-        conditioning: Optional[TensorType["float"]] = None,
+        x_t: Float[torch.Tensor, "b ..."],
+        conditioning: Optional[Float[torch.Tensor, "b ..."]] = None,
         classifier_free_scale: float = 1,
-    ) -> tuple[TensorType["float"], TensorType["float"]]:
+    ) -> tuple[Float[torch.Tensor, "b ..."], Float[torch.Tensor, "b ..."]]:
         """
         Compute a sample of the backward process `q(x_0 | x_t)`, by denoising `x_t` using a model,
         and return both the sample and the predicted noise.
@@ -123,13 +126,13 @@ class DDPM:
     def backward_sample(
         self,
         t: Timestep,
-        x_t: TensorType["float"],
-        conditioning: Optional[TensorType["float"]] = None,
+        x_t: Float[torch.Tensor, "b ..."],
+        conditioning: Optional[Float[torch.Tensor, "b ..."]] = None,
         classifier_free_scale: float = 1,
         clip_predicted_x_0: bool = True,
         add_noise: bool = True,
         generator: Optional[torch.Generator] = None,
-    ) -> tuple[TensorType["float"], TensorType["float"]]:
+    ) -> tuple[Float[torch.Tensor, "b ..."], Float[torch.Tensor, "b ..."]]:
         """
         Obtain a sample of the backward process `q(x_t-1 | x_t, x_0)`,
         by predicting `x_0` using a denoising model, and then taking a step of the backward process.
@@ -151,7 +154,10 @@ class DDPM:
         """
         # Predict x_0 using the model
         x_hat_0, pred_noise = self.predict_x_0_and_noise(
-            t=t, x_t=x_t, conditioning=conditioning, classifier_free_scale=classifier_free_scale
+            t=t,
+            x_t=x_t,
+            conditioning=conditioning,
+            classifier_free_scale=classifier_free_scale,
         )
         # Apply classifier-free guidance, if conditioning is present
         if clip_predicted_x_0:

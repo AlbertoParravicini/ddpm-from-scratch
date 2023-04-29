@@ -8,6 +8,8 @@
 !pyproject.toml
 !poetry.lock
 !mypy.ini
+!.flake8
+!lint.sh
 
 # Add python code
 !ddpm_from_scratch

@@ -5,6 +5,7 @@ from typing import Callable, Optional
 import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 import numpy as np
+from jaxtyping import Float
 from segretini_matplottini.utils.colors import PALETTE_1
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 
@@ -12,8 +13,11 @@ PLOT_DIR = Path(__file__).parent.parent / "plots"
 
 
 def make_spiral(
-    n: int, start: float = 1.5 * np.pi, end: float = 4.5 * np.pi, normalize: bool = False
-) -> tuple[np.ndarray, np.ndarray]:
+    n: int,
+    start: float = 1.5 * np.pi,
+    end: float = 4.5 * np.pi,
+    normalize: bool = False,
+) -> tuple[Float[np.ndarray, " n"], Float[np.ndarray, " n"]]:
     """
     Create a spiral with the specified number of samples. The starting point has angle `start`,
     defined starting from 0 * np.pi with radius `start`, while the ending angle and radius defined by `end`,
@@ -44,8 +48,11 @@ def make_spiral(
 
 
 def linear_beta_schedule(
-    num_timesteps: int = 1000, β_start: float = 0.00085, β_end: float = 0.012, num_train_timesteps: int = 1000
-) -> np.ndarray:
+    num_timesteps: int = 1000,
+    β_start: float = 0.00085,
+    β_end: float = 0.012,
+    num_train_timesteps: int = 1000,
+) -> Float[np.ndarray, " n"]:
     """
     Create a variance schedule (`beta schedule`) with linearly spaced values from a starting value
     to an ending value. Default values are the ones commonly used in LDM/Stable Diffusion.
@@ -66,7 +73,10 @@ def linear_beta_schedule(
 
 class GaussianDiffusion:
     def __init__(
-        self, num_timesteps: int, betas: np.ndarray, denoise_function: Callable[[int, np.ndarray], np.ndarray]
+        self,
+        num_timesteps: int,
+        betas: Float[np.ndarray, " n"],
+        denoise_function: Callable[[int, Float[np.ndarray, "x y"]], Float[np.ndarray, "x y"]],
     ) -> None:
         assert num_timesteps == len(betas), "the number of timesteps must be the same as the number of betas"
 
@@ -111,8 +121,11 @@ class GaussianDiffusion:
         self.denoise_function = denoise_function
 
     def forward_sample(
-        self, t: int, x_start: np.ndarray, noise: Optional[np.ndarray] = None
-    ) -> tuple[np.ndarray, np.ndarray]:
+        self,
+        t: int,
+        x_start: Float[np.ndarray, "x y"],
+        noise: Optional[Float[np.ndarray, "x y"]] = None,
+    ) -> tuple[Float[np.ndarray, "x y"], Float[np.ndarray, "x y"]]:
         """
         Compute `q(x_i | x_i-t)`, as a sample of a Gaussian process with equation
         ```
@@ -126,9 +139,14 @@ class GaussianDiffusion:
         """
         if noise is None:
             noise = np.random.randn(*x_start.shape)
-        return self.sqrt_alpha_cumprods[t] * x_start + self.sqrt_one_minus_alpha[t] * noise, noise
+        return (
+            self.sqrt_alpha_cumprods[t] * x_start + self.sqrt_one_minus_alpha[t] * noise,
+            noise,
+        )
 
-    def _predict_x_0_and_noise(self, t: int, x_start: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _predict_x_0_and_noise(
+        self, t: int, x_start: Float[np.ndarray, "x y"]
+    ) -> tuple[Float[np.ndarray, "x y"], Float[np.ndarray, "x y"]]:
         """
         Compute a sample of the backward process `q(x_0 | x_t)`, by denoising `x_t` using a model,
         and return both the sample and the predicted noise.
@@ -140,7 +158,12 @@ class GaussianDiffusion:
         x_hat_0 = coeff_x_t * x_start - coeff_noise * noise / coeff_x_t
         return x_hat_0, noise
 
-    def _posterior_mean_variance(self, t: int, x_start: np.ndarray, x_t: np.ndarray) -> tuple[float, float]:
+    def _posterior_mean_variance(
+        self,
+        t: int,
+        x_start: Float[np.ndarray, "x y"],
+        x_t: Float[np.ndarray, "x y"],
+    ) -> tuple[float, float]:
         """
         Obtain the mean and variance of q(x_t-1 | x_t, x_0)
         """
@@ -153,10 +176,10 @@ class GaussianDiffusion:
     def backward_sample(
         self,
         t: int,
-        x_start: np.ndarray,
+        x_start: Float[np.ndarray, "x y"],
         clip_predicted_x_0: bool = True,
         add_noise: bool = True,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[Float[np.ndarray, "x y"], Float[np.ndarray, "x y"]]:
         """
         Obtain a sample of the backward process `q(x_t-1 | x_t, x_0)`,
         by predicting `x_0` using a denoising model, and then taking a step of the backward process.
@@ -199,7 +222,11 @@ if __name__ == "__main__":
 
     # Create the diffusion forward process.
     # We need to provide a denoising function. Here we just return random noise, since we are not training a model yet
-    gaussian_diffusion = GaussianDiffusion(num_timesteps, βs, denoise_function=lambda t, x: np.random.randn(*x.shape))
+    gaussian_diffusion = GaussianDiffusion(
+        num_timesteps,
+        βs,
+        denoise_function=lambda t, x: np.random.randn(*x.shape),
+    )
 
     # Now we work in continous time and with arbitrary timesteps.
     # Given the continous timestep in [0, 1], we index the closest
@@ -212,11 +239,23 @@ if __name__ == "__main__":
         sample, _ = gaussian_diffusion.forward_sample(timestep, X)
         samples += [sample]
         # Plot the spiral
-        ax[i].scatter(sample[:, 0], sample[:, 1], color=PALETTE_1[-2], alpha=0.8, edgecolor="#2f2f2f", lw=0.5)
+        ax[i].scatter(
+            sample[:, 0],
+            sample[:, 1],
+            color=PALETTE_1[-2],
+            alpha=0.8,
+            edgecolor="#2f2f2f",
+            lw=0.5,
+        )
         ax[i].set_title(f"A spiral becoming noise, step {t}")
         ax[i].set_xlim((-1, 1))  # enforce axes limits as we add noise
         ax[i].set_ylim((-1, 1))
-    save_plot(PLOT_DIR, "1_2_gaussian_diffusion_forward.png", create_date_dir=False, bbox_inches="tight")
+    save_plot(
+        PLOT_DIR,
+        "1_2_gaussian_diffusion_forward.png",
+        create_date_dir=False,
+        bbox_inches="tight",
+    )
 
     # Try removing noise from the spiral. We don't have a model, so our "model" will just return random noise
     X_noisy = samples[-1]
@@ -229,7 +268,14 @@ if __name__ == "__main__":
             # Plot the current spiral, every few steps
             if timestep % (num_timesteps // 20) == 0 or timestep == num_timesteps - 1:
                 plt.figure(figsize=(6, 6))
-                plt.scatter(X_noisy[:, 0], X_noisy[:, 1], color=PALETTE_1[-2], alpha=0.8, edgecolor="#2f2f2f", lw=0.5)
+                plt.scatter(
+                    X_noisy[:, 0],
+                    X_noisy[:, 1],
+                    color=PALETTE_1[-2],
+                    alpha=0.8,
+                    edgecolor="#2f2f2f",
+                    lw=0.5,
+                )
                 plt.title("Noise becoming a spiral? " + r"$q(x_{t - 1} | x_t, \hat{x}_0), t=$" + f"{timestep}")
                 plt.xlim((-1, 1))
                 plt.ylim((-1, 1))

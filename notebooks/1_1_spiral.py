@@ -6,19 +6,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as st
 import seaborn as sns
+from jaxtyping import Float
 from segretini_matplottini.utils.colors import PALETTE_1
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 
 
-def univariate_gaussian_sample(n: int, μ: float = 0, σ: float = 1) -> np.ndarray:
+def univariate_gaussian_sample(n: int, μ: float = 0, σ: float = 1) -> Float[np.ndarray, " n"]:
     return μ + σ * np.random.randn(n)
 
 
 def make_spiral(
-    n: int, start: float = 1.5 * np.pi, end: float = 4.5 * np.pi, normalize: bool = False
-) -> tuple[np.ndarray, np.ndarray]:
+    n: int,
+    start: float = 1.5 * np.pi,
+    end: float = 4.5 * np.pi,
+    normalize: bool = False,
+) -> tuple[Float[np.ndarray, " n"], Float[np.ndarray, " n"]]:
     """
     Create a spiral with the specified number of samples. The starting point has angle `start`,
     defined starting from 0 * np.pi with radius `start`, while the ending angle and radius defined by `end`,
@@ -49,8 +53,11 @@ def make_spiral(
 
 
 def linear_beta_schedule(
-    num_timesteps: int = 1000, β_start: float = 0.00085, β_end: float = 0.012, num_train_timesteps: int = 1000
-) -> np.ndarray:
+    num_timesteps: int = 1000,
+    β_start: float = 0.00085,
+    β_end: float = 0.012,
+    num_train_timesteps: int = 1000,
+) -> Float[np.ndarray, " n"]:
     """
     Create a variance schedule (`beta schedule`) with linearly spaced values from a starting value
     to an ending value. Default values are the ones commonly used in LDM/Stable Diffusion.
@@ -130,7 +137,14 @@ if __name__ == "__main__":
             Xt += [X]
             # Plot the spiral
             plt.figure(figsize=(6, 6))
-            plt.scatter(X[:, 0], X[:, 1], color=PALETTE_1[-2], alpha=0.8, edgecolor="#2f2f2f", lw=0.5)
+            plt.scatter(
+                X[:, 0],
+                X[:, 1],
+                color=PALETTE_1[-2],
+                alpha=0.8,
+                edgecolor="#2f2f2f",
+                lw=0.5,
+            )
             plt.title(f"A spiral becoming noise, step {t}")
             plt.xlim((-1, 1))  # enforce axes limits as we add noise
             plt.ylim((-1, 1))

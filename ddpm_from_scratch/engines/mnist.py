@@ -10,16 +10,15 @@ import imageio.v2 as imageio
 import numpy as np
 import torch
 import torchvision.transforms as T
+from jaxtyping import Float, Integer
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
-from torchtyping import TensorType
 from torchvision.datasets.mnist import MNIST
 from torchvision.utils import make_grid
 from tqdm import tqdm
 
 from ddpm_from_scratch.samplers import Sampler
-from ddpm_from_scratch.utils import B, C, H, W
 
 
 class MnistInferenceGifCallback:
@@ -31,7 +30,7 @@ class MnistInferenceGifCallback:
         """
         self.writer = imageio.get_writer(filename, mode="I")
 
-    def __call__(self, timestep: int, x: TensorType["float"]) -> None:
+    def __call__(self, timestep: int, x: Float[torch.Tensor, "b ..."]) -> None:
         # Plot multiple digits as a grid, each in a separate column
         grid = make_grid(x, padding=False, nrow=len(x), normalize=True)
         # Append the result to the GIF
@@ -60,7 +59,13 @@ def load_mnist(data_root: Path, batch_size: int = 4) -> tuple[MNIST, DataLoader,
             ]
         ),
     )
-    dataloader_train = DataLoader(mnist_train, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=True)
+    dataloader_train = DataLoader(
+        mnist_train,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=4,
+        drop_last=True,
+    )
     mnist_test = MNIST(
         root=data_root,
         download=True,
@@ -72,11 +77,17 @@ def load_mnist(data_root: Path, batch_size: int = 4) -> tuple[MNIST, DataLoader,
             ]
         ),
     )
-    dataloader_test = DataLoader(mnist_test, batch_size=batch_size, shuffle=False, num_workers=1, drop_last=False)
+    dataloader_test = DataLoader(
+        mnist_test,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=1,
+        drop_last=False,
+    )
     return mnist_train, dataloader_train, mnist_test, dataloader_test
 
 
-def get_one_element_per_digit(mnist: MNIST) -> TensorType[10, 1, 28, 28]:
+def get_one_element_per_digit(mnist: MNIST) -> Float[torch.Tensor, "10, 1, 28, 28"]:
     """
     Get a single sample digit for each target category in MNIST, and return the result as a tensor.
     The output is a `[10, 1, 28, 28]` tensor, with digits `[0, 1, 2, ..., 9]`
@@ -117,7 +128,12 @@ def train(
             # Zero gradients at every step
             optimizer.zero_grad()
             # Take a random timestep
-            t = torch.randint(low=0, high=sampler.num_timesteps, size=(x.shape[0],), device=device)
+            t = torch.randint(
+                low=0,
+                high=sampler.num_timesteps,
+                size=(x.shape[0],),
+                device=device,
+            )
             # Add some noise to the data
             with torch.no_grad():
                 x_noisy, noise = sampler.forward_sample(t, x)
@@ -258,15 +274,15 @@ def train_with_class_conditioning(
 
 
 def inference(
-    x: TensorType["B", "C", "H", "W", "float"],
+    x: Float[torch.Tensor, "b c h w"],
     sampler: Sampler,
-    conditioning: Optional[TensorType["B", "int"]] = None,
-    callback: Optional[Callable[[int, TensorType["float"]], None]] = None,
+    conditioning: Optional[Integer[torch.Tensor, " b"]] = None,
+    callback: Optional[Callable[[int, Float[torch.Tensor, "b ..."]], None]] = None,
     call_callback_every_n_steps: int = 50,
     initial_step_percentage: float = 1,
     classifier_free_scale: float = 1,
     verbose: bool = True,
-) -> TensorType["B", "C", "H", "W", "float"]:
+) -> Float[torch.Tensor, "b c h w"]:
     """
     Loop for diffusion inference on a batch of MNIST digits.
 

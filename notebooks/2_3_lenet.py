@@ -90,11 +90,11 @@ if __name__ == "__main__":
         zorder=2,
     )
     plt.xlim(0, len(losses))
-    save_plot(PLOT_DIR, "2_4_loss_function.png", create_date_dir=False)
+    save_plot(PLOT_DIR, "2_3_loss_function.png", create_date_dir=False)
     # Print a summary
     print(
         f"final validation loss: {val_losses_per_epoch[-1]:.4f}, "
         + f"probability of error: {100 * val_errors_per_epoch[-1]:.4f}%"
     )
     # Save the model
-    torch.save(model.state_dict(), DATA_DIR / "lenet5.pt")
+    torch.save(model.state_dict(), DATA_DIR / "2_3_lenet5.pt")

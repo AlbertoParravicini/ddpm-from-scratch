@@ -8,7 +8,7 @@ from jaxtyping import Float, Integer
 COOL_GREEN = "#57bb8a"
 
 
-Timestep = Union[int, list[int], Integer[torch.Tensor, "*#b *#t"]]
+Timestep = Union[int, list[int], Integer[torch.Tensor, "*#b #t"]]
 
 
 def univariate_gaussian_sample(n: int, μ: float = 0, σ: float = 1) -> Float[torch.Tensor, " n"]:

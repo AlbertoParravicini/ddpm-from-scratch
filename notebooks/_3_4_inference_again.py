@@ -7,7 +7,7 @@ from segretini_matplottini.utils.plot_utils import reset_plot_style
 from tqdm import tqdm
 
 from ddpm_from_scratch.engines.mnist import MnistInferenceGifCallback, get_one_element_per_digit, load_mnist
-from ddpm_from_scratch.models.unet_simple import UNetSimple
+from ddpm_from_scratch.models.unet_simple_with_timestep import UNetSimpleWithTimestep
 from ddpm_from_scratch.samplers.ddim import DDIM
 from ddpm_from_scratch.utils import ScaledLinearBetaSchedule
 
@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     # Define the denoising model.
     # model = UNetConditioned(num_classes=10, hidden_channels=24).to(device)
-    model = UNetSimple().to(device)
+    model = UNetSimpleWithTimestep().to(device)
 
     # Create the diffusion process.
     num_timesteps = 1000
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=8)
 
     # Load the trained model
-    model.load_state_dict(torch.load(DATA_DIR / "2_1_unet.pt"))
+    model.load_state_dict(torch.load(DATA_DIR / "2_2_unet.pt"))
     model = model.half()
 
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...).

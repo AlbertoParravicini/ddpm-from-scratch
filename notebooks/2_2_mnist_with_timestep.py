@@ -39,9 +39,9 @@ class Config:
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 TRAINING_CONFIG: dict[str, Config] = {
     "cuda": Config(
-        num_training_epochs=32,
+        num_training_epochs=96,
         batch_size=128,
-        lr=1e-4,
+        lr=1e-3,
         device=torch.device("cuda"),
     ),
     "cpu": Config(
@@ -93,6 +93,9 @@ if __name__ == "__main__":
         device=device,
     )
 
+    # Save the model
+    torch.save(model.state_dict(), DATA_DIR / "2_2_unet.pt")
+
     #%% Plot the loss function
     plt.figure(figsize=(6, 6))
     plt.plot(np.arange(len(losses)), losses, lw=0.2)
@@ -103,7 +106,7 @@ if __name__ == "__main__":
         zorder=2,
     )
     plt.xlim(0, len(losses))
-    plt.ylim(0.4, 1.6)
+    plt.ylim(0, 0.4)
     save_plot(PLOT_DIR, "2_2_loss_function.png", create_date_dir=False)
 
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...).

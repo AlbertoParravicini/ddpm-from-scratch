@@ -120,7 +120,9 @@ class DDPM:
             noise_cf = self.model(_t_scaled, x_t)
             noise = noise_cf + classifier_free_scale * (noise - noise_cf)
         # x_hat_0 is obtained from equation (15) of DDPM, https://arxiv.org/pdf/2006.11239.pdf
-        x_hat_0 = (x_t - torch.sqrt(1 - self.alpha_cumprods[_t]) * noise) / torch.sqrt(self.alpha_cumprods[_t])
+        x_hat_0 = (x_t - torch.sqrt(1 - expand_to_dims(self.alpha_cumprods[_t], noise)) * noise) / expand_to_dims(
+            torch.sqrt(self.alpha_cumprods[_t]), noise
+        )
         return x_hat_0, noise
 
     def backward_sample(

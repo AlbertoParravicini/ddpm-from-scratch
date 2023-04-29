@@ -41,7 +41,7 @@ class Config:
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 TRAINING_CONFIG: dict[str, Config] = {
     "cuda": Config(
-        num_training_epochs=16,
+        num_training_epochs=32,
         batch_size=128,
         lr=1e-3,
         device=torch.device("cuda"),
@@ -113,7 +113,7 @@ if __name__ == "__main__":
         ),
     )
     batch_size = config.batch_size
-    dataloader = DataLoader(mnist, batch_size=batch_size, shuffle=True, num_workers=1)
+    dataloader = DataLoader(mnist, batch_size=batch_size, shuffle=True, num_workers=8)
 
     #%% Train the model.
     # This training is identical to denoising the spiral,
@@ -163,6 +163,7 @@ if __name__ == "__main__":
         zorder=2,
     )
     plt.xlim(0, len(losses))
+    plt.ylim(0, 0.4)
     save_plot(PLOT_DIR, "2_1_loss_function.png", create_date_dir=False)
 
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...).

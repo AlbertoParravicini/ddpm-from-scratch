@@ -104,11 +104,11 @@ class UNetSimpleWithTimestep(nn.Module):
             x = nn.functional.relu(x)
             xs.append(x)
         # Upsample pass
-        for layer, emb in zip(self.upsample_layers.values(), self.upsample_timesteps.values()):
+        for i, (layer, emb) in enumerate(zip(self.upsample_layers.values(), self.upsample_timesteps.values())):
             # Concatenate each input with the output of the corresponding downsample layer, on the channel dimension
             x = torch.cat([x, xs.pop()], dim=1)
             x = layer(x)
             # Add the timestep to the layer output
             x = x + expand_to_dims(emb(t), x)  # Replicate time embedding to H and W
-            x = nn.functional.relu(x)
+            x = nn.functional.relu(x) if i < len(self.upsample_layers) - 1 else x  # Don't apply ReLU to the last layer
         return x

@@ -31,6 +31,7 @@ class MnistInferenceGifCallback:
         self.writer = imageio.get_writer(filename, mode="I")
 
     def __call__(self, timestep: int, x: Float[torch.Tensor, "b ..."]) -> None:
+        x = torch.clip(x, -1, 1)
         # Plot multiple digits as a grid, each in a separate column
         grid = make_grid(x, padding=False, nrow=len(x), normalize=True)
         # Append the result to the GIF
@@ -63,7 +64,7 @@ def load_mnist(data_root: Path, batch_size: int = 4) -> tuple[MNIST, DataLoader,
         mnist_train,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=4,
+        num_workers=8,
         drop_last=True,
     )
     mnist_test = MNIST(
@@ -87,7 +88,7 @@ def load_mnist(data_root: Path, batch_size: int = 4) -> tuple[MNIST, DataLoader,
     return mnist_train, dataloader_train, mnist_test, dataloader_test
 
 
-def get_one_element_per_digit(mnist: MNIST) -> Float[torch.Tensor, "10, 1, 28, 28"]:
+def get_one_element_per_digit(mnist: MNIST) -> Float[torch.Tensor, "10 1 28 28"]:
     """
     Get a single sample digit for each target category in MNIST, and return the result as a tensor.
     The output is a `[10, 1, 28, 28]` tensor, with digits `[0, 1, 2, ..., 9]`
@@ -138,7 +139,7 @@ def train(
             with torch.no_grad():
                 x_noisy, noise = sampler.forward_sample(t, x)
             # Predict the noise
-            _, predicted_noise = sampler.predict_x_0_and_noise(t, x_noisy)
+            predicted_noise = sampler.model(t, x_noisy)
             # Compute loss, as L2 of real and predicted noise
             loss = torch.nn.functional.mse_loss(predicted_noise, noise, reduction="mean")
             # Backward step
@@ -330,4 +331,6 @@ def inference(
         ):
             assert callback is not None
             callback(timestep, x)
-    return x
+    # Clip the output in [-1, 1]
+    return torch.clip(x, -1, 1)
+

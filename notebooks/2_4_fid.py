@@ -6,9 +6,9 @@ from tqdm import tqdm
 
 from ddpm_from_scratch.engines.mnist import inference, load_mnist
 from ddpm_from_scratch.models.lenet5 import LeNet5
-from ddpm_from_scratch.models.unet import UNet
+from ddpm_from_scratch.models.unet_simple_with_timestep import UNetSimpleWithTimestep
 from ddpm_from_scratch.samplers.ddpm import DDPM
-from ddpm_from_scratch.utils import CosineBetaSchedule, gaussian_frechet_distance
+from ddpm_from_scratch.utils import LinearBetaSchedule, gaussian_frechet_distance
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -20,7 +20,8 @@ if __name__ == "__main__":
 
     #%% Load the LeNet5 model.
     lenet5 = LeNet5(num_classes=10)
-    lenet5.load_state_dict(torch.load(DATA_DIR / "2_4_lenet.pt")).to(device)
+    lenet5.load_state_dict(torch.load(DATA_DIR / "2_3_lenet5.pt"))
+    lenet5.to(device)
 
     # Load the MNIST dataset. Split between training and test set.
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=8)
@@ -28,7 +29,7 @@ if __name__ == "__main__":
     # Compute features for training and test set.
     with torch.inference_mode():
         features_train_list: list[Float[torch.Tensor, "b n"]] = []
-        for (x, _) in tqdm(dataloader_train, desc="lenet5 - training"):
+        for (x, _) in tqdm(dataloader_train, desc="lenet5 - training set"):
             x = x.to(device)
             f, _ = lenet5(x)
             features_train_list += [f]
@@ -49,14 +50,17 @@ if __name__ == "__main__":
     # Compute test-test and test-train FID, as lower bounds.
     test_test_fid = gaussian_frechet_distance(mean_test, cov_test, mean_test, cov_test).item()
     test_train_fid = gaussian_frechet_distance(mean_test, cov_test, mean_train, cov_train).item()
+    # Test-test FID should be 0, since we're comparing the same values. Just a sanity check.
     print(f"test-test FID: {test_test_fid:.4f}")
+    # Train-test FID should be ~0.8, a very low value since the distributions should also match.
     print(f"test-train FID: {test_train_fid:.4f}")
 
     #%% Compute test-random FID, as upper bound.
     # To estimate the FID of noise, create random noise, and compute its LeNet5 features.
+    # Here the FID is super high, > 1000. This is expected, since the noise is not a digit.
     with torch.inference_mode():
         features_rand_list: list[Float[torch.Tensor, "b n"]] = []
-        for (x, _) in tqdm(dataloader_test, desc="lenet5 - random"):
+        for (x, _) in tqdm(dataloader_test, desc="lenet5 - random data"):
             x = x.to(device)
             f, _ = lenet5(torch.rand_like(x))
             features_rand_list += [f]
@@ -66,12 +70,14 @@ if __name__ == "__main__":
     test_rand_fid = gaussian_frechet_distance(mean_test, cov_test, mean_rand, cov_rand).item()
     print(f"test-random FID: {test_rand_fid:.4f}")
 
-    #%% Generate a bunch of digits using the pretrained model
+    #%% Generate a bunch of digits using the pretrained model.
+    # We only use 50 steps in inference, to keep the process fast.
+    # We'll get an upper bound of FID, but that's ok! Feel free to use more steps, if you want.
 
-    unet = UNet()
-    unet.load_state_dict(torch.load(DATA_DIR / "2_3_unet.pt"))
-    betas = CosineBetaSchedule()
-    ddpm = DDPM(betas, unet, num_timesteps=1000, device=device)
+    unet = UNetSimpleWithTimestep()
+    unet.load_state_dict(torch.load(DATA_DIR / "2_2_unet.pt"))
+    betas = LinearBetaSchedule()
+    ddpm = DDPM(betas, unet, num_timesteps=50, device=device)
 
     with torch.inference_mode():
         features_ddpm_list: list[Float[torch.Tensor, "b n"]] = []

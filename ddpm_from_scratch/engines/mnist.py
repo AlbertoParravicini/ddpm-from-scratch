@@ -211,7 +211,7 @@ def train_with_class_conditioning(
             x = x.to(device)
             y = y.to(device)
             # Swap some classes with the "empty class", marked using 10 (since MNIST classes go from 0 to 9)
-            y[torch.rand(len(y)) <= classifier_free_probability] = 10
+            y[torch.rand(len(y), generator=generator_training, device=device) <= classifier_free_probability] = 10
             # Zero gradients at every step
             optimizer.zero_grad()
             # Take a random timestep
@@ -295,7 +295,7 @@ def inference(
     callback: Optional[Callable[[int, Float[torch.Tensor, "b ..."]], None]] = None,
     call_callback_every_n_steps: int = 50,
     initial_step_percentage: float = 1,
-    classifier_free_scale: float = 1,
+    classifier_free_guidance_scale: float = 1,
     clip_output: bool = True,
     generator: Optional[torch.Generator] = None,
     verbose: bool = True,
@@ -315,8 +315,8 @@ def inference(
     :param initial_step_percentage: strength of the noise applied to the forward sample, in [0, 1].
         By default, assume we are starting from pure noise, and we are generating data from pure noise.
         If less than 1, we perform denoising starting from a noisy image, doing only a fraction of the timesteps.
-    :param classifier_free_scale: if != 1, apply classifier-free guidance.
-        This means that each noise prediction is computed as ϵ(x_t) + classifier_free_scale * (ϵ(x_t | y) - ϵ(x_t)).
+    :param classifier_free_guidance_scale: if != 1, apply classifier-free guidance.
+        This means that each noise prediction is computed as ϵ(x_t) + classifier_free_guidance_scale * (ϵ(x_t | y) - ϵ(x_t)).
         The value is ignored if `conditioning` is None.
     :param clip_output: if True, clip the output in [-1, 1].
     :param generator: random number generator used by the backward process.
@@ -337,7 +337,7 @@ def inference(
                 timestep,
                 x,
                 conditioning=conditioning,
-                classifier_free_scale=classifier_free_scale,
+                classifier_free_guidance_scale=classifier_free_guidance_scale,
                 add_noise=t != 0,
                 clip_predicted_x_0=False,
                 generator=generator,
@@ -359,7 +359,7 @@ def fid(
     dataloader: DataLoader,
     feature_extractor_model: nn.Module,
     conditioning: bool = False,
-    classifier_free_scale: float = 1,
+    classifier_free_guidance_scale: float = 1,
     num_batches: Optional[int] = None,
     device: torch.device = torch.device("cpu"),
     generator: Optional[torch.Generator] = None,
@@ -377,7 +377,7 @@ def fid(
         The model must return a tuple `[features, logits]`, but only features are used.
     :param conditioning: if True, use condition the generation on the classes of the digits.
         Note that the
-    :param classifier_free_scale: if != 1, and classifier_free_scale is True,
+    :param classifier_free_guidance_scale: if != 1, and classifier_free_guidance_scale is True,
         apply classifier-free guidance with the provided scale.
     :param num_batches: if not None, estimate FID only on the first `num_batches` batches of the dataset,
         to keep the computation shorter.
@@ -412,7 +412,7 @@ def fid(
                 x=noise,
                 sampler=sampler,
                 conditioning=y if conditioning else None,
-                classifier_free_scale=classifier_free_scale,
+                classifier_free_guidance_scale=classifier_free_guidance_scale,
                 verbose=False,
                 generator=generator,
             )
@@ -434,10 +434,10 @@ def fid(
     return fid_score
 
 
-def generated_digits(
+def generate_digits(
     sampler: Sampler,
     conditioning: bool = False,
-    classifier_free_scale: float = 1,
+    classifier_free_guidance_scale: float = 1,
     num_generated_images_per_digit: int = 16,
     device: torch.device = torch.device("cpu"),
     generator: Optional[torch.Generator] = None,
@@ -450,7 +450,7 @@ def generated_digits(
     :param sampler: the sampler used to generate digits, e.g. DDPM or DDIM.
     :param conditioning: if True, use condition the generation on the classes of the digits.
         Note that the
-    :param classifier_free_scale: if != 1, and classifier_free_scale is True,
+    :param classifier_free_guidance_scale: if != 1, and classifier_free_guidance_scale is True,
         apply classifier-free guidance with the provided scale.
     :param num_generated_images_per_digit: how many digits to generate per class.
         This value is also identical to the batch size used in the generation process.
@@ -470,7 +470,7 @@ def generated_digits(
                 x=noise,
                 sampler=sampler,
                 conditioning=y if conditioning else None,
-                classifier_free_scale=classifier_free_scale,
+                classifier_free_guidance_scale=classifier_free_guidance_scale,
                 verbose=False,
                 generator=generator,
             )

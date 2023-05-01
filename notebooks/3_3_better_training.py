@@ -21,7 +21,7 @@ from ddpm_from_scratch.engines.mnist import (
 )
 from ddpm_from_scratch.models import UNetWithConditioning, LeNet5
 from ddpm_from_scratch.samplers import DDPM, DDIM
-from ddpm_from_scratch.utils import LinearBetaSchedule
+from ddpm_from_scratch.utils import CosineBetaSchedule
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,7 @@ class Config:
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 TRAINING_CONFIG: dict[str, Config] = {
     "cuda": Config(
-        num_training_epochs=96,
+        num_training_epochs=256,
         batch_size=128,
         lr=1e-3,
         device=torch.device("cuda"),
@@ -82,12 +82,15 @@ if __name__ == "__main__":
     print(model)
     print(f"trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
-    # Define the optimizer.
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+    # Define the optimizer. This time, replace Adam for a better optimizer.
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr)
+    # Create a LR scheduler that reduces by 10x the LR after 40% of the epochs
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(config.num_training_epochs * 0.4), gamma=0.1)
 
-    # Create the diffusion process.
+    # Create the diffusion process. Here, swap the linear schedule with a cosine schedule,
+    # which introduces noise in a smoother way and should provide better results.
     num_timesteps = 1000
-    betas = LinearBetaSchedule(num_train_timesteps=num_timesteps)
+    betas = CosineBetaSchedule(num_train_timesteps=num_timesteps)
     ddpm = DDPM(betas, model, device=device, num_timesteps=num_timesteps)
 
     # Load the MNIST dataset. Split between training and test set.
@@ -104,6 +107,7 @@ if __name__ == "__main__":
         dataloader=dataloader_train,
         sampler=ddpm,
         optimizer=optimizer,
+        scheduler=scheduler,
         epochs=config.num_training_epochs,
         device=device,
         classifier_free_probability=0.1,
@@ -113,7 +117,7 @@ if __name__ == "__main__":
     )
 
     # Save the model
-    torch.save(model.state_dict(), DATA_DIR / "3_1_unet.pt")
+    torch.save(model.state_dict(), DATA_DIR / "3_3_unet.pt")
 
     #%% Plot the training loss and the validation loss.
     # For the training loss we also plot a rolling average to obtain a smoother curve,
@@ -142,7 +146,7 @@ if __name__ == "__main__":
     plt.xlim(0, len(losses))
     plt.ylim(0.0, 0.2)
     plt.legend(loc="upper right", frameon=True)
-    save_plot(PLOT_DIR, f"3_1_loss_function.png", create_date_dir=False)
+    save_plot(PLOT_DIR, f"3_3_loss_function.png", create_date_dir=False)
     plt.close()
 
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...).
@@ -156,9 +160,10 @@ if __name__ == "__main__":
     x_denoised = inference(
         x=x_noisy,
         sampler=sampler,
-        callback=MnistInferenceGifCallback(filename=PLOT_DIR / "3_1_inference.gif"),
+        callback=MnistInferenceGifCallback(filename=PLOT_DIR / "3_3_inference.gif"),
         call_callback_every_n_steps=2,
         conditioning=torch.arange(0, 10, device=device),
+        classifier_free_guidance_scale=5,
     )
     # Compute error, as L2 norm.
     l2 = torch.nn.functional.mse_loss(x_denoised, x, reduction="mean").item()
@@ -180,6 +185,7 @@ if __name__ == "__main__":
         feature_extractor_model=lenet5,
         num_batches=50,
         device=device,
+        classifier_free_guidance_scale=5,
         generator=torch.Generator(device=device).manual_seed(42),
     )
     print(f"test-ddim FID: {fid_score:.4f}")
@@ -188,9 +194,13 @@ if __name__ == "__main__":
     # Some digits have a somewhat recognizable shape, meaning that the class conditioning is adding some information.
     # But other digits are just white blobs, as if the model was just creating an "average" digit.
     grid = generate_digits(
-        sampler, conditioning=True, device=device, generator=torch.Generator(device=device).manual_seed(42)
+        sampler,
+        conditioning=True,
+        device=device,
+        generator=torch.Generator(device=device).manual_seed(42),
+        classifier_free_guidance_scale=5,
     )
-    F.to_pil_image(grid).save(PLOT_DIR / "3_1_generated_digits.png")
+    F.to_pil_image(grid).save(PLOT_DIR / "3_3_generated_digits.png")
     plt.close()
 
     #%% Plot a heatmap with the class embedings learnt by the model.
@@ -198,9 +208,9 @@ if __name__ == "__main__":
     # a weak negative correlation, since the digits look similar to each other.
     class_embeddings = model.class_embedding.weight.detach().cpu().numpy()
     sns.heatmap(class_embeddings)
-    save_plot(PLOT_DIR, "3_1_class_embeddings.png", create_date_dir=False)
+    save_plot(PLOT_DIR, "3_3_class_embeddings.png", create_date_dir=False)
     plt.close()
     # Also plot the correlation matrix of the class embeddings.
     sns.heatmap(pd.DataFrame(class_embeddings).T.corr())
-    save_plot(PLOT_DIR, "3_1_class_embeddings_correlation.png", create_date_dir=False)
+    save_plot(PLOT_DIR, "3_3_class_embeddings_correlation.png", create_date_dir=False)
     plt.close()

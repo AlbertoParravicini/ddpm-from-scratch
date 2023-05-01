@@ -7,7 +7,7 @@ from segretini_matplottini.utils.plot_utils import reset_plot_style
 from tqdm import tqdm
 
 from ddpm_from_scratch.engines.mnist import MnistInferenceGifCallback, get_one_element_per_digit, load_mnist, inference
-from ddpm_from_scratch.models import UNetWithTimestep
+from ddpm_from_scratch.models import UNetWithTimestep, UNetWithConditioning
 from ddpm_from_scratch.samplers import DDIM, DDPM
 from ddpm_from_scratch.utils import ScaledLinearBetaSchedule, LinearBetaSchedule
 

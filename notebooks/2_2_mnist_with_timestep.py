@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+import torchvision.transforms.functional as F
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,6 +14,7 @@ from ddpm_from_scratch.engines.mnist import (
     inference,
     load_mnist,
     train,
+    generate_digits
 )
 from ddpm_from_scratch.models import UNetWithTimestep
 from ddpm_from_scratch.samplers import DDPM
@@ -81,7 +83,7 @@ if __name__ == "__main__":
     ddpm = DDPM(betas, model, device=device, num_timesteps=num_timesteps)
 
     # Load the MNIST dataset. Split between training and test set.
-    mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=config.batch_size)
+    mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=config.batch_size, seed=42)
 
     #%% Train the model.
     # We wrap the training code into a function for simplicity, but the code is unchanged from `2_1_mnist.py`.
@@ -126,3 +128,12 @@ if __name__ == "__main__":
     # Compute error, as L2 norm.
     l2 = torch.nn.functional.mse_loss(x_denoised, x, reduction="mean").item()
     print(f"L2 norm after denoising: {l2:.6f}")
+
+    #%% Generate a grid of digits.
+    # Some digits have a somewhat recognizable shape, meaning that the class conditioning is adding some information.
+    # But other digits are just white blobs, as if the model was just creating an "average" digit.
+    grid = generate_digits(
+        ddpm, conditioning=False, device=device, generator=torch.Generator(device=device).manual_seed(42)
+    )
+    F.to_pil_image(grid).save(PLOT_DIR / "2_2_generated_digits.png")
+    plt.close()

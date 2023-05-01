@@ -8,7 +8,6 @@ from ddpm_from_scratch.utils import expand_to_dims
 from ddpm_from_scratch.models.spiral_denoising_model import SinusoidalEncoding
 
 
-
 class EmbeddingProjection(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, hidden_channels: int = 16):
         """
@@ -60,18 +59,17 @@ class UNetWithConditioning(nn.Module):
         # There is also a learnable embedding for the class, with `classes + 1` embeddings
         # (the extra one is for unconditional generation).
         self.classes = classes
-        # self.time_embedding = nn.Embedding(num_embeddings=1024, embedding_dim=hidden_channels * 4)
-        self.time_embedding = SinusoidalEncoding(hidden_channels * 8, maximum_length=1024)
-        self.class_embedding = nn.Embedding(num_embeddings=classes + 1, embedding_dim=hidden_channels * 8)
-        self.downsample_embeddings = nn.ModuleDict(
+        self.time_embedding = SinusoidalEncoding(hidden_channels, maximum_length=1024)
+        self.class_embedding = nn.Embedding(num_embeddings=classes + 1, embedding_dim=hidden_channels)
+        self.downsample_timesteps = nn.ModuleDict(
             {
-                f"embedding_down_{i}": EmbeddingProjection(hidden_channels * 8, self._channels[i + 1])
+                f"timestep_down_{i}": EmbeddingProjection(hidden_channels, self._channels[i + 1])
                 for i in range(len(self._channels) - 1)
             }
         )
-        self.upsample_embeddings = nn.ModuleDict(
+        self.upsample_timesteps = nn.ModuleDict(
             {
-                f"embedding_up_{i}": EmbeddingProjection(hidden_channels * 8, self._channels[i])
+                f"timestep_up_{i}": EmbeddingProjection(hidden_channels, self._channels[i])
                 for i in range(len(self._channels) - 1)[::-1]
             }
         )
@@ -124,24 +122,24 @@ class UNetWithConditioning(nn.Module):
             if c is not None
             else self.class_embedding(torch.tensor(self.classes, device=x.device))
         )
-        # Combine embeddings
+        # Combine time and class embeddings
         e = t_emb + c_emb
         # Store the output of each layer
         xs = []
         # Downsample pass
-        for layer, emb in zip(self.downsample_layers.values(), self.downsample_embeddings.values()):
+        for layer, emb in zip(self.downsample_layers.values(), self.downsample_timesteps.values()):
             # Compute each downsample layer
             x = layer(x)
-            # Add the timestep and class to the layer output
-            x = x + expand_to_dims(emb(e), x)  # Replicate embedding to H and W
+            # Add the timestep to the layer output
+            x = x + expand_to_dims(emb(e), x)  # Replicate time embedding to H and W
             x = nn.functional.relu(x)
             xs.append(x)
         # Upsample pass
-        for i, (layer, emb) in enumerate(zip(self.upsample_layers.values(), self.upsample_embeddings.values())):
+        for i, (layer, emb) in enumerate(zip(self.upsample_layers.values(), self.upsample_timesteps.values())):
             # Concatenate each input with the output of the corresponding downsample layer, on the channel dimension
             x = torch.cat([x, xs.pop()], dim=1)
-            # Add the timestep and classs to the layer output
             x = layer(x)
-            x = x + expand_to_dims(emb(e), x)  # Replicate embedding to H and W
+            # Add the timestep to the layer output
+            x = x + expand_to_dims(emb(e), x)  # Replicate time embedding to H and W
             x = nn.functional.relu(x) if i < len(self.upsample_layers) - 1 else x  # Don't apply ReLU to the last layer
         return x

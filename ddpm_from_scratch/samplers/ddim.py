@@ -88,7 +88,7 @@ class DDIM:
         t: Timestep,
         x_t: Float[torch.Tensor, "b ..."],
         conditioning: Optional[Float[torch.Tensor, "b ..."]] = None,
-        classifier_free_scale: float = 1,
+        classifier_free_guidance_scale: float = 1,
     ) -> tuple[Float[torch.Tensor, "b ..."], Float[torch.Tensor, "b ..."]]:
         """
         Compute a sample of the backward process `q(x_0 | x_t)`, by denoising `x_t` using a model,
@@ -98,8 +98,8 @@ class DDIM:
         :param t: timestep(s) for the prediction, in the range `[0, self.num_timesteps)`
         :param x_t: tensor used for prediction, it represents `x_t`
         :param conditioning: additional conditioning applied to the model, e.g. to specify classes or text.
-        :param classifier_free_scale: if != 1, apply classifier-free guidance.
-            This means that each noise prediction is computed as ϵ(x_t) + classifier_free_scale * (ϵ(x_t | y) - ϵ(x_t)).
+        :param classifier_free_guidance_scale: if != 1, apply classifier-free guidance.
+            This means that each noise prediction is computed as ϵ(x_t) + classifier_free_guidance_scale * (ϵ(x_t | y) - ϵ(x_t)).
             The value is ignored if `conditioning` is None
         :return: prediction of `x_0` and prediction of the noise added to `x_0` to obtain `x_start`
         """
@@ -117,9 +117,9 @@ class DDIM:
         noise = self.model(_t_scaled, x_t, conditioning) if conditioning is not None else self.model(_t_scaled, x_t)
         # Apply classifier-free guidance if required, by denoising again but without conditioning,
         # then blending the two predictions.
-        if conditioning is not None and classifier_free_scale != 1:
+        if conditioning is not None and classifier_free_guidance_scale != 1:
             noise_cf = self.model(_t_scaled, x_t)
-            noise = noise_cf + classifier_free_scale * (noise - noise_cf)
+            noise = noise_cf + classifier_free_guidance_scale * (noise - noise_cf)
         # Equation (12) of DDIM (https://arxiv.org/pdf/2010.02502.pdf), "predicted x_0".
         # Since `_t` can be also be an array, we have to replicate it so that it can be broadcasted on `x_t`.
         x_hat_0 = expand_to_dims(
@@ -134,7 +134,7 @@ class DDIM:
         t: Timestep,
         x_t: Float[torch.Tensor, "b ..."],
         conditioning: Optional[Float[torch.Tensor, "b ..."]] = None,
-        classifier_free_scale: float = 1,
+        classifier_free_guidance_scale: float = 1,
         clip_predicted_x_0: bool = False,
         add_noise: bool = False,
         generator: Optional[torch.Generator] = None,
@@ -149,9 +149,9 @@ class DDIM:
         :param x_t: value of `x_t`
         :param conditioning: additional conditioning applied to the model, 
             e.g. to specify the class of the generated samples
-        :param classifier_free_scale: if != 1, apply classifier-free guidance.
+        :param classifier_free_guidance_scale: if != 1, apply classifier-free guidance.
             This means that each noise prediction is computed as 
-            ϵ(x_t) + classifier_free_scale * (ϵ(x_t | c) - ϵ(x_t)), where c is the class conditioning.
+            ϵ(x_t) + classifier_free_guidance_scale * (ϵ(x_t | c) - ϵ(x_t)), where c is the class conditioning.
             The value is ignored if `conditioning` is None
         :param clip_predicted_x_0: if True, clip the predicted `x_0` to [-1, 1].
             This is meaningful only if the model is trained on clipped values
@@ -164,7 +164,7 @@ class DDIM:
             t=t,
             x_t=x_t,
             conditioning=conditioning,
-            classifier_free_scale=classifier_free_scale,
+            classifier_free_guidance_scale=classifier_free_guidance_scale,
         )
         if clip_predicted_x_0:
             x_hat_0 = torch.clip(x_hat_0, -1, 1)

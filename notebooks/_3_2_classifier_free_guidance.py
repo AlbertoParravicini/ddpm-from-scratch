@@ -52,7 +52,7 @@ if __name__ == "__main__":
             callback=MnistInferenceGifCallback(filename=PLOT_DIR / f"3_2_inference_{noise_strength:.2f}.gif"),
             call_callback_every_n_steps=5,
             initial_step_percentage=noise_strength,
-            classifier_free_scale=7,
+            classifier_free_guidance_scale=7,
         )
         # Compute error, as L2 norm.
         l2 = torch.nn.functional.mse_loss(x_denoised, x, reduction="mean").item()

@@ -139,7 +139,7 @@ if __name__ == "__main__":
             ),
             call_callback_every_n_steps=5,
             initial_step_percentage=noise_strength,
-            classifier_free_scale=7.5,
+            classifier_free_guidance_scale=7.5,
         )
         # Compute error, as L2 norm.
         l2 = torch.nn.functional.mse_loss(x_denoised, x, reduction="mean").item()

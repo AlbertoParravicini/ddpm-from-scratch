@@ -13,7 +13,7 @@ from ddpm_from_scratch.engines.mnist import (
     load_mnist,
     train,
 )
-from ddpm_from_scratch.models.unet import UNet
+from ddpm_from_scratch.models.unet_big import UNet
 from ddpm_from_scratch.samplers.ddpm import DDPM
 from ddpm_from_scratch.utils import CosineBetaSchedule
 

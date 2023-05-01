@@ -14,8 +14,8 @@ from ddpm_from_scratch.engines.mnist import (
     load_mnist,
     train,
 )
-from ddpm_from_scratch.models.unet_simple_with_timestep import UNetSimpleWithTimestep
-from ddpm_from_scratch.samplers.ddpm import DDPM
+from ddpm_from_scratch.models import UNetWithTimestep
+from ddpm_from_scratch.samplers import DDPM
 from ddpm_from_scratch.utils import LinearBetaSchedule
 
 
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     device = config.device
 
     # Define the denoising model.
-    model = UNetSimpleWithTimestep().to(device)
+    model = UNetWithTimestep().to(device)
     print(model)
     print(f"trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
@@ -98,6 +98,7 @@ if __name__ == "__main__":
 
     #%% Plot the loss function
     plt.figure(figsize=(6, 6))
+    plt.grid(axis="y", color="0.9", zorder=0, lw=0.4)
     plt.plot(np.arange(len(losses)), losses, lw=0.2)
     plt.plot(
         np.arange(len(losses)),
@@ -106,7 +107,7 @@ if __name__ == "__main__":
         zorder=2,
     )
     plt.xlim(0, len(losses))
-    plt.ylim(0, 0.4)
+    plt.ylim(0, 0.2)
     save_plot(PLOT_DIR, "2_2_loss_function.png", create_date_dir=False)
 
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...).

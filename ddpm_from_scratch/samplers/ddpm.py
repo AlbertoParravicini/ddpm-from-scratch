@@ -131,7 +131,7 @@ class DDPM:
         x_t: Float[torch.Tensor, "b ..."],
         conditioning: Optional[Float[torch.Tensor, "b ..."]] = None,
         classifier_free_scale: float = 1,
-        clip_predicted_x_0: bool = True,
+        clip_predicted_x_0: bool = False,
         add_noise: bool = True,
         generator: Optional[torch.Generator] = None,
     ) -> tuple[Float[torch.Tensor, "b ..."], Float[torch.Tensor, "b ..."]]:
@@ -145,10 +145,11 @@ class DDPM:
         :param x_start: value of `x_t`
         :param conditioning: additional conditioning applied to the model, e.g. to specify classes or text.
         :param classifier_free_scale: if != 1, apply classifier-free guidance.
-            This means that each noise prediction is computed as ϵ(x_t) + classifier_free_scale * (ϵ(x_t | y) - ϵ(x_t)).
-            The value is ignored if `conditioning` is None.
-        :param clip_predicted_x_0: if True, clip the predicted value of `x_0` in `[-1, 1]`
-            This is meaningful only for denoising the spiral! We mights other values for images
+            This means that each noise prediction is computed as 
+            ϵ(x_t) + classifier_free_scale * (ϵ(x_t | c) - ϵ(x_t)), where c is the class conditioning.
+            The value is ignored if `conditioning` is None
+        :param clip_predicted_x_0: if True, clip the predicted value of `x_0` in `[-1, 1]`.
+            This is meaningful only if the model is trained on clipped values.
         :param add_noise: if True, add noise, scaled by the posterior variance, to the predicted sample of `x_t-1`.
             If False, the backward sample is deterministic. It should be False for `t = 0`, True otherwise (in DDPM)
         :param generator: random number generator used to sample the noise, if `add_noise` is True.

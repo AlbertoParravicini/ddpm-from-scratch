@@ -16,7 +16,7 @@ from torchvision.datasets.mnist import MNIST
 from torchvision.utils import make_grid
 from tqdm import tqdm
 
-from ddpm_from_scratch.models.unet_simple import UNetSimple
+from ddpm_from_scratch.models import UNet
 from ddpm_from_scratch.samplers import DDPM
 from ddpm_from_scratch.utils import LinearBetaSchedule
 
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     # Define the denoising model.
     # Here we are using an extremely simple UNet. It doesn't even use time-conditioning!
     # We don't expect it to work well, but we'll make it better soon.
-    model = UNetSimple().to(device)
+    model = UNet().to(device)
     print(model)
     print(f"trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
@@ -170,6 +170,10 @@ if __name__ == "__main__":
     # Here we do 1000 steps of DDPM for inference, which is highly inefficient!
     # We could do fewer steps and still get an acceptable quality,
     # even more so if we use a different sampler.
+    # A subtle detail of the forward step is that even when adding noise for T=1000,
+    # we don't obtain a pure Gaussian noise, but a small amount of the original data is still present.
+    # Do do a real generation from scratch, we need to sample pure Gaussian noise 
+    # instead of using the forward process.
     x = get_one_element_per_digit(mnist).to(device)
     num_timesteps = 1000
     ddpm = DDPM(betas, model, device=device, num_timesteps=num_timesteps)

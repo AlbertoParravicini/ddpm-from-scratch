@@ -2,14 +2,14 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from diffusers import DDPMScheduler  # type: ignore
+from diffusers import DDPMScheduler, DDIMScheduler  # type: ignore
 from segretini_matplottini.utils.plot_utils import reset_plot_style
 from tqdm import tqdm
 
-from ddpm_from_scratch.engines.mnist import MnistInferenceGifCallback, get_one_element_per_digit, load_mnist
-from ddpm_from_scratch.models.unet_simple_with_timestep import UNetSimpleWithTimestep
-from ddpm_from_scratch.samplers.ddim import DDIM
-from ddpm_from_scratch.utils import ScaledLinearBetaSchedule
+from ddpm_from_scratch.engines.mnist import MnistInferenceGifCallback, get_one_element_per_digit, load_mnist, inference
+from ddpm_from_scratch.models import UNetWithTimestep
+from ddpm_from_scratch.samplers import DDIM, DDPM
+from ddpm_from_scratch.utils import ScaledLinearBetaSchedule, LinearBetaSchedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -28,12 +28,10 @@ if __name__ == "__main__":
 
     # Define the denoising model.
     # model = UNetConditioned(num_classes=10, hidden_channels=24).to(device)
-    model = UNetSimpleWithTimestep().to(device)
+    model = UNetWithTimestep().to(device)
 
     # Create the diffusion process.
-    num_timesteps = 1000
-    betas = ScaledLinearBetaSchedule()
-    ddpm_fake = DDIM(betas, model, device=device, num_timesteps=num_timesteps)
+    num_timesteps = 50
 
     # Load the MNIST dataset.
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=8)
@@ -45,13 +43,22 @@ if __name__ == "__main__":
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...).
     x = get_one_element_per_digit(mnist_test).to(device)
     # This time, we use classifier-free guidance, balancing conditioned and unconditioned sampling.
-    ddim = DDPMScheduler(
+    # ddim = DDPMScheduler(
+    #     beta_start=0.00085,
+    #     beta_end=0.012,
+    #     beta_schedule="linear",
+    #     num_train_timesteps=1000,
+    #     clip_sample=True,
+    #     # set_alpha_to_one=False,
+    #     prediction_type="epsilon",
+    # )
+    ddim = DDIMScheduler(
         beta_start=0.00085,
         beta_end=0.012,
-        beta_schedule="scaled_linear",
+        beta_schedule="linear",
         num_train_timesteps=1000,
         clip_sample=False,
-        # set_alpha_to_one=False,
+        set_alpha_to_one=False,
         prediction_type="epsilon",
     )
     scale = 9
@@ -59,12 +66,12 @@ if __name__ == "__main__":
     ddim.timesteps = ddim.timesteps.to(x.device)
     callback = MnistInferenceGifCallback(filename=PLOT_DIR / "3_4_inference_diffusers.gif")
     noise = torch.randn(*x.shape, device=x.device)
-    x_noisy_fake = ddpm_fake.forward_sample(50 - 1, x, noise=noise)[0]
-    x_noisy = ddim.add_noise(
-        x,
-        noise=noise,
-        timesteps=torch.tensor(1000 - 1, device=x.device, dtype=torch.long),
-    )
+    # x_noisy = ddim.add_noise(
+    #     x,
+    #     noise=noise,
+    #     timesteps=torch.tensor(1000 - 1, device=x.device, dtype=torch.long),
+    # )
+    x_noisy = noise
     model.eval()
     x_t = x_noisy.half()
     for t in tqdm(ddim.timesteps, desc="inference"):
@@ -82,9 +89,27 @@ if __name__ == "__main__":
             )
             x_t, x_0 = output.prev_sample, output.pred_original_sample
         # Call the optional callback, every few steps
-        if (t % 50 == 0 or t == num_timesteps - 1) and callback is not None:
+        if (t % 2 == 0 or t == num_timesteps - 1) and callback is not None:
             assert callback is not None
             callback(t, x_t)
     # Compute error, as L2 norm.
     l2 = torch.nn.functional.mse_loss(x_t, x, reduction="mean").item()
     print(f"L2 norm after denoising, noise strength diffusers: {l2:.6f}")
+
+    #%% Our sampler
+    betas = LinearBetaSchedule()
+    # ddim_ours = DDPM(betas, model.float(), device=device, num_timesteps=num_timesteps)
+    ddim_ours = DDIM(betas, model.float(), device=device, num_timesteps=num_timesteps)
+
+    # Add noise to the digits.
+    # x_noisy, _ = ddim_ours.forward_sample(num_timesteps - 1, x.float())
+    # Do inference, and store results into the GIF, using the callback.
+    x_denoised = inference(
+        x=x_noisy,
+        sampler=ddim_ours,
+        callback=MnistInferenceGifCallback(filename=PLOT_DIR / "3_4_inference.gif"),
+        call_callback_every_n_steps=2,
+    )
+    # Compute error, as L2 norm.
+    l2 = torch.nn.functional.mse_loss(x_denoised, x, reduction="mean").item()
+    print(f"L2 norm after denoising: {l2:.6f}")

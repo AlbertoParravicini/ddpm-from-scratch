@@ -1,42 +1,52 @@
-from typing import Sequence, cast
+from typing import Sequence, cast, Optional
 
 import torch
 import torch.nn as nn
 from jaxtyping import Float, Integer
 
-from ddpm_from_scratch.models.spiral_denoising_model import SinusoidalEncoding
 from ddpm_from_scratch.utils import expand_to_dims
+from ddpm_from_scratch.models.spiral_denoising_model import SinusoidalEncoding
 
 
-class TimestepEmbedding(nn.Module):
-    def __init__(self, output_channels: int, hidden_channels: int = 16):
+
+class EmbeddingProjection(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int, hidden_channels: int = 16):
+        """
+        A learnable block that projects an embedding (e.g. a timestep embedding) into the desired size.
+        The embedding is passed through a non-linear transformation,
+        and the output of the block has size `out_channels`.
+        """
         super().__init__()
-        self.timestep_embedding = nn.Sequential(
-            SinusoidalEncoding(hidden_channels, maximum_length=1024),
-            nn.Linear(hidden_channels, hidden_channels),
+        self.embedding = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels),
             nn.SiLU(),
-            nn.Linear(hidden_channels, output_channels),
+            nn.Linear(hidden_channels, out_channels),
         )
 
-    def forward(self, t: Integer[torch.Tensor, " b"]) -> Integer[torch.Tensor, "b c"]:
-        return cast(torch.Tensor, self.timestep_embedding(t))
+    def forward(self, e: Integer[torch.Tensor, " b"]) -> Float[torch.Tensor, "b c"]:
+        return cast(torch.Tensor, self.embedding(e))
 
 
-class UNetSimpleWithTimestep(nn.Module):
+class UNetWithConditioning(nn.Module):
     def __init__(
         self,
+        classes: int,
         in_channels: int = 1,
         hidden_channels: int = 16,
         channel_multipliers: Sequence[int] = (1, 2, 3),
     ) -> None:
         """
-        A simple UNet model, with time-conditioning.
+        A simple UNet model, with time-conditioning and class-conditioning.
         It has a few downsample 2D 3x3 convolutional layers with stride 2, followed by
         upsample 2D transposed 3x3 convolution layers that take as input both the previous layer's output
         and the output of the corresponding downsample layer.
         The timestep is encoded with sinusoidal encoding, and added to the output of each layer,
-        broadcasted on the spatial coordinates.
+        projected to the layer number of channels and broadcasted on the spatial coordinates.
+        The class conditioning is a learnt embedding, also added to the output of each layer,
+        projected to the layer number of channels and broadcasted on the spatial coordinates.
 
+        :param classes: number of classes for the class conditioning. The model learns an embedding for each class,
+            plus an embedding for `no class`, used for unconditional generation.
         :param in_channels: input channels of the first layer. 1 for grayscale images, 3 for RGB images
         :param hidden_channels: base number of channels of hidden layers. The number of channels in layer `i`
             is obtained as `hidden_channels * channel_multipliers[i]`.
@@ -45,13 +55,25 @@ class UNetSimpleWithTimestep(nn.Module):
         """
         super().__init__()
         self._channels = [in_channels] + [hidden_channels * c for c in channel_multipliers]
-        # Add a sinusoidal timestep encoding for each layer,
-        # with the same size as the number of output channels of that layer
-        self.downsample_timesteps = nn.ModuleDict(
-            {f"timestep_down_{i}": TimestepEmbedding(self._channels[i + 1]) for i in range(len(self._channels) - 1)}
+        # Add a sinusoidal timestep encoding at the start, and a projection layer to every layer
+        # that is usd to add the embedding. It has the same size as the number of output channels of that layer.
+        # There is also a learnable embedding for the class, with `classes + 1` embeddings
+        # (the extra one is for unconditional generation).
+        self.classes = classes
+        # self.time_embedding = nn.Embedding(num_embeddings=1024, embedding_dim=hidden_channels * 4)
+        self.time_embedding = SinusoidalEncoding(hidden_channels * 8, maximum_length=1024)
+        self.class_embedding = nn.Embedding(num_embeddings=classes + 1, embedding_dim=hidden_channels * 8)
+        self.downsample_embeddings = nn.ModuleDict(
+            {
+                f"embedding_down_{i}": EmbeddingProjection(hidden_channels * 8, self._channels[i + 1])
+                for i in range(len(self._channels) - 1)
+            }
         )
-        self.upsample_timesteps = nn.ModuleDict(
-            {f"timestep_up_{i}": TimestepEmbedding(self._channels[i]) for i in range(len(self._channels) - 1)[::-1]}
+        self.upsample_embeddings = nn.ModuleDict(
+            {
+                f"embedding_up_{i}": EmbeddingProjection(hidden_channels * 8, self._channels[i])
+                for i in range(len(self._channels) - 1)[::-1]
+            }
         )
         # Downsample layers. At each layer, we halve the resolution,
         # and increase the channel count by the specified factor.
@@ -92,23 +114,34 @@ class UNetSimpleWithTimestep(nn.Module):
         self,
         t: Integer[torch.Tensor, " b"],
         x: Float[torch.Tensor, "b c h w"],
+        c: Optional[Integer[torch.Tensor, " b"]] = None,
     ) -> Float[torch.Tensor, "b c h w"]:
+        # Timestep embedding
+        t_emb = self.time_embedding(t)
+        # Class embedding
+        c_emb = (
+            self.class_embedding(c)
+            if c is not None
+            else self.class_embedding(torch.tensor(self.classes, device=x.device))
+        )
+        # Combine embeddings
+        e = t_emb + c_emb
         # Store the output of each layer
         xs = []
         # Downsample pass
-        for layer, emb in zip(self.downsample_layers.values(), self.downsample_timesteps.values()):
+        for layer, emb in zip(self.downsample_layers.values(), self.downsample_embeddings.values()):
             # Compute each downsample layer
             x = layer(x)
-            # Add the timestep to the layer output
-            x = x + expand_to_dims(emb(t), x)  # Replicate time embedding to H and W
+            # Add the timestep and class to the layer output
+            x = x + expand_to_dims(emb(e), x)  # Replicate embedding to H and W
             x = nn.functional.relu(x)
             xs.append(x)
         # Upsample pass
-        for i, (layer, emb) in enumerate(zip(self.upsample_layers.values(), self.upsample_timesteps.values())):
+        for i, (layer, emb) in enumerate(zip(self.upsample_layers.values(), self.upsample_embeddings.values())):
             # Concatenate each input with the output of the corresponding downsample layer, on the channel dimension
             x = torch.cat([x, xs.pop()], dim=1)
+            # Add the timestep and classs to the layer output
             x = layer(x)
-            # Add the timestep to the layer output
-            x = x + expand_to_dims(emb(t), x)  # Replicate time embedding to H and W
+            x = x + expand_to_dims(emb(e), x)  # Replicate embedding to H and W
             x = nn.functional.relu(x) if i < len(self.upsample_layers) - 1 else x  # Don't apply ReLU to the last layer
         return x

@@ -9,7 +9,7 @@ from torch.nn.functional import binary_cross_entropy_with_logits
 from tqdm import tqdm
 
 from ddpm_from_scratch.engines.mnist import load_mnist
-from ddpm_from_scratch.models.lenet5 import LeNet5
+from ddpm_from_scratch.models import LeNet5
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"
 DATA_DIR = Path(__file__).parent.parent / "data"

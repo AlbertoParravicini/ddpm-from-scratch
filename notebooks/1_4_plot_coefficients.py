@@ -8,8 +8,8 @@ import torch
 from segretini_matplottini.utils.plot_utils import reset_plot_style, save_plot
 from tqdm import tqdm
 
-from ddpm_from_scratch.models.spiral_denoising_model import SpiralDenoisingModel
-from ddpm_from_scratch.samplers.ddpm import DDPM
+from ddpm_from_scratch.models import SpiralDenoisingModel
+from ddpm_from_scratch.samplers import DDPM
 from ddpm_from_scratch.utils import BetaSchedule, LinearBetaSchedule, ScaledLinearBetaSchedule
 
 PLOT_DIR = Path(__file__).parent.parent / "plots"

@@ -100,7 +100,7 @@ class DDIM:
         :param conditioning: additional conditioning applied to the model, e.g. to specify classes or text.
         :param classifier_free_scale: if != 1, apply classifier-free guidance.
             This means that each noise prediction is computed as ϵ(x_t) + classifier_free_scale * (ϵ(x_t | y) - ϵ(x_t)).
-            The value is ignored if `conditioning` is None.
+            The value is ignored if `conditioning` is None
         :return: prediction of `x_0` and prediction of the noise added to `x_0` to obtain `x_start`
         """
         # Ensure the timestep is an integer tensor.
@@ -135,8 +135,9 @@ class DDIM:
         x_t: Float[torch.Tensor, "b ..."],
         conditioning: Optional[Float[torch.Tensor, "b ..."]] = None,
         classifier_free_scale: float = 1,
-        clip_predicted_x_0: bool = True,
+        clip_predicted_x_0: bool = False,
         add_noise: bool = False,
+        generator: Optional[torch.Generator] = None,
     ) -> tuple[Float[torch.Tensor, "b ..."], Float[torch.Tensor, "b ..."]]:
         """
         Obtain a sample of the backward process `q(x_t-1 | x_t, x_0)`,
@@ -145,9 +146,17 @@ class DDIM:
         and of the predicted `x_0`, and `β_hat_t` is only a function of the `β` schedule.
 
         :param t: timestep of `x_t`
-        :param x_start: value of `x_t`
-        :param add_noise: if True, add noise, scaled by the posterior variance, to the predicted sample of `x_t-1`.
-            If False, the backward sample is deterministic. It should be False for `t = 0`, True otherwise (in DDPM)
+        :param x_t: value of `x_t`
+        :param conditioning: additional conditioning applied to the model, 
+            e.g. to specify the class of the generated samples
+        :param classifier_free_scale: if != 1, apply classifier-free guidance.
+            This means that each noise prediction is computed as 
+            ϵ(x_t) + classifier_free_scale * (ϵ(x_t | c) - ϵ(x_t)), where c is the class conditioning.
+            The value is ignored if `conditioning` is None
+        :param clip_predicted_x_0: if True, clip the predicted `x_0` to [-1, 1].
+            This is meaningful only if the model is trained on clipped values
+        :param add_noise: unused in DDIM. It is kept for compatibility with DDPM
+        :param generator: unused in DDIM, since it is deterministic. It is kept for compatibility with DDPM
         :return: the sample of `x_t-1`, and the predicted `x_0`
         """
         # Predict x_0 using the model.

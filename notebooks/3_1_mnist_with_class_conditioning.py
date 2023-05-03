@@ -150,8 +150,7 @@ if __name__ == "__main__":
     sampler = DDIM(betas, model, device=device, num_timesteps=num_timesteps)
     x = get_one_element_per_digit(mnist_test).to(device)
     # Add noise to the digits.
-    # x_noisy, _ = sampler.forward_sample(num_timesteps - 1, x)
-    x_noisy = torch.randn(*x.shape, device=x.device)
+    x_noisy, _ = sampler.forward_sample(num_timesteps - 1, x)
     # Do inference, and store results into the GIF, using the callback.
     x_denoised = inference(
         x=x_noisy,

@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     # Load the model.
     model = UNetWithConditioning(classes=10).to(device)
-    model.load_state_dict(torch.load(DATA_DIR / "3_1_unet.pt"))
+    model.load_state_dict(torch.load(DATA_DIR / "3_3_unet.pt"))
 
     # Create the diffusion process.
     num_timesteps = 1000

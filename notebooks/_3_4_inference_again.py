@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     # Define the denoising model.
     # model = UNetConditioned(num_classes=10, hidden_channels=24).to(device)
-    model = UNetWithTimestep().to(device)
+    model = UNetWithConditioning(10).to(device)
 
     # Create the diffusion process.
     num_timesteps = 50
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(DATA_DIR, batch_size=8)
 
     # Load the trained model
-    model.load_state_dict(torch.load(DATA_DIR / "2_2_unet.pt"))
+    model.load_state_dict(torch.load(DATA_DIR / "3_3_unet.pt"))
     model = model.half()
 
     #%% Do inference, denoising one sample digit for each category (0, 1, 2, ...).
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     ddim = DDIMScheduler(
         beta_start=0.00085,
         beta_end=0.012,
-        beta_schedule="linear",
+        beta_schedule="squaredcos_cap_v2",
         num_train_timesteps=1000,
         clip_sample=False,
         set_alpha_to_one=False,
@@ -77,10 +77,10 @@ if __name__ == "__main__":
     for t in tqdm(ddim.timesteps, desc="inference"):
         # Inference, predict the next step given the current one
         with torch.no_grad():
-            noise_pred = model(t.unsqueeze(0), x_t)
-            # noise_pred_cond = model(t.unsqueeze(0), x_t, torch.arange(0, 10, device=device))
-            # noise_pred_uncond = model(t.unsqueeze(0), x_t)
-            # noise_pred = noise_pred_uncond + scale * (noise_pred_cond - noise_pred_uncond)
+            # noise_pred = model(t.unsqueeze(0), x_t)
+            noise_pred_cond = model(t.unsqueeze(0), x_t, torch.arange(0, 10, device=device))
+            noise_pred_uncond = model(t.unsqueeze(0), x_t)
+            noise_pred = noise_pred_uncond + scale * (noise_pred_cond - noise_pred_uncond)
             output = ddim.step(
                 noise_pred,
                 t,

@@ -21,7 +21,7 @@ from ddpm_from_scratch.engines.mnist import (
 )
 from ddpm_from_scratch.models import UNetWithConditioning, LeNet5
 from ddpm_from_scratch.samplers import DDPM, DDIM
-from ddpm_from_scratch.utils import CosineBetaSchedule
+from ddpm_from_scratch.utils import ScaledLinearBetaSchedule
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,7 @@ class Config:
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 TRAINING_CONFIG: dict[str, Config] = {
     "cuda": Config(
-        num_training_epochs=256,
+        num_training_epochs=96,
         batch_size=128,
         lr=1e-3,
         device=torch.device("cuda"),
@@ -65,8 +65,7 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 
 #%%
 if __name__ == "__main__":
-    # Setup. This is identical to `2_2_mnist.py`,
-    # but we now introduce class-conditioning along with timestep conditioning.
+    # Setup.
     np.random.seed(seed=42)
     torch.manual_seed(42)
     reset_plot_style(xtick_major_pad=4, ytick_major_pad=4, border_width=1.5, label_pad=4)
@@ -77,7 +76,6 @@ if __name__ == "__main__":
     device = config.device
 
     # Define the denoising model.
-    # Now we add a class embedding, and we also increase a bit the size of the embeddings.
     model = UNetWithConditioning(classes=10).to(device)
     print(model)
     print(f"trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
@@ -87,22 +85,18 @@ if __name__ == "__main__":
     # Create a LR scheduler that reduces by 10x the LR after 40% of the epochs
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(config.num_training_epochs * 0.4), gamma=0.1)
 
-    # Create the diffusion process. Here, swap the linear schedule with a cosine schedule,
+    # Create the diffusion process. Here, swap the linear schedule with a scaled linear schedule,
     # which introduces noise in a smoother way and should provide better results.
     num_timesteps = 1000
-    betas = CosineBetaSchedule(num_train_timesteps=num_timesteps)
+    betas = ScaledLinearBetaSchedule(num_train_timesteps=num_timesteps)
     ddpm = DDPM(betas, model, device=device, num_timesteps=num_timesteps)
 
-    # Load the MNIST dataset. Split between training and test set.
-    # Pass a seed to the training set dataloader, for reproducibility.
+    # Load the MNIST dataset.
     mnist_train, dataloader_train, mnist_test, dataloader_test = load_mnist(
         DATA_DIR, batch_size=config.batch_size, seed=42
     )
 
     #%% Train the model.
-    # Compared to `2_2_mnist.py`, the training loop has more options.
-    # Beside doing class conditioning with probability `1 - classifier_free_probability`,
-    # we also compute the loss over the validation dataset every `validation_every_n_epochs` epochs.
     losses, val_losses = train_with_class_conditioning(
         dataloader=dataloader_train,
         sampler=ddpm,
@@ -120,9 +114,6 @@ if __name__ == "__main__":
     torch.save(model.state_dict(), DATA_DIR / "3_3_unet.pt")
 
     #%% Plot the training loss and the validation loss.
-    # For the training loss we also plot a rolling average to obtain a smoother curve,
-    # while that's not necessary for the validation loss since each point
-    # is the average over the validation set.
     plt.figure(figsize=(6, 6))
     plt.grid(axis="y", color="0.9", zorder=0, lw=0.4)
     plt.plot(np.arange(len(losses)), losses, lw=0.6, color=PALETTE_OG[0])
@@ -154,8 +145,7 @@ if __name__ == "__main__":
     sampler = DDIM(betas, model, device=device, num_timesteps=num_timesteps)
     x = get_one_element_per_digit(mnist_test).to(device)
     # Add noise to the digits.
-    # x_noisy, _ = sampler.forward_sample(num_timesteps - 1, x)
-    x_noisy = torch.randn(*x.shape, device=x.device)
+    x_noisy, _ = sampler.forward_sample(num_timesteps - 1, x)
     # Do inference, and store results into the GIF, using the callback.
     x_denoised = inference(
         x=x_noisy,
@@ -172,9 +162,6 @@ if __name__ == "__main__":
 
     #%% Measure FID, generating a few digits from scratch
     # and comparing their feature distribution against the real data.
-    # The code is the same as in `2_4_fid.py`, but we wrap it into a function
-    # to make it more reusable.
-    # Results are not great, and they are not significantly improved from the previous model.
     lenet5 = LeNet5(num_classes=10)
     lenet5.load_state_dict(torch.load(DATA_DIR / "2_3_lenet5.pt"))
     lenet5.to(device)
@@ -191,8 +178,6 @@ if __name__ == "__main__":
     print(f"test-ddim FID: {fid_score:.4f}")
 
     #%% Generate a grid of digits.
-    # Some digits have a somewhat recognizable shape, meaning that the class conditioning is adding some information.
-    # But other digits are just white blobs, as if the model was just creating an "average" digit.
     grid = generate_digits(
         sampler,
         conditioning=True,
@@ -204,8 +189,6 @@ if __name__ == "__main__":
     plt.close()
 
     #%% Plot a heatmap with the class embedings learnt by the model.
-    # There's no obvious pattern, although some class embeddings (like 1 and 7) present
-    # a weak negative correlation, since the digits look similar to each other.
     class_embeddings = model.class_embedding.weight.detach().cpu().numpy()
     sns.heatmap(class_embeddings)
     save_plot(PLOT_DIR, "3_3_class_embeddings.png", create_date_dir=False)
